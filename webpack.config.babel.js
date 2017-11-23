@@ -8,7 +8,11 @@ const libraryName = "stush";
 const outputFile = `${libraryName}.js`;
 
 export default {
-  entry: `${__dirname}/src/index.js`,
+  target: "node",
+  entry: [
+    "babel-polyfill",
+    `${__dirname}/src/index.js`
+  ],
   devtool: __development ? "source-map": "",
   output: {
     path: `${__dirname}/lib`,

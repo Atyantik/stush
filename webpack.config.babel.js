@@ -1,8 +1,10 @@
+import webpack from "webpack";
 import path from "path";
 import MinifyPlugin from "babel-minify-webpack-plugin";
 
 // Track current mode of execution development/production
 const __development = process.env.NODE_ENV === "development";
+console.log(__development);
 
 const libraryName = "stush";
 const outputFile = `${libraryName}.js`;
@@ -39,6 +41,9 @@ export default {
   plugins: [
     ...(__development ? []: [
       new MinifyPlugin()
-    ])
+    ]),
+    new webpack.DefinePlugin({
+      "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV || "production")
+    })
   ]
 };

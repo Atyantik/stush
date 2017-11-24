@@ -2,8 +2,11 @@ import Stripe from "stripe";
 import _ from "lodash";
 import Validator from "validations";
 import Customer from "./customer/customer";
-import Subscription from "./subscription/subscription";
+// import Subscription from "./subscription/subscription";
 import generateError from "./handler/error";
+import { makeUtilsGlobal } from "./utils";
+
+makeUtilsGlobal();
 
 class Stush {
   userOptions = {};
@@ -16,25 +19,40 @@ class Stush {
 
   async createSubscription(args) {
     let input = this.validator.createSubscriptionInput(args);
-    let resolved = {};
+    // debug(input); process.exit();
     if (!input.error) {
       try {
-        // let customer = new Customer(this, _.get(input, "params.customer"));
+        if (_.has(input, "params.customer.id")) {
+          // create subscription for provided customer.
+          let customer = new Customer(this, _.get(input, "params.customer"));
+          // await customer.selfPopulate();
+          customer.set({account_balance: 0, metadata: {a: 3, b:1, c:2}});
+          await customer.save();
+          debug("Existing customer in index: ", customer.toJson());
+          await customer.addSubscription(_.get(input, "params.subscription"));
+        }
+        else {
+          // create new customer and a subscription.
+          let customer = new Customer(this, _.get(input, "params.customer"));
+          await customer.save();
+          debug("New customer in index: ", customer.toJson());
+        }
+
+        // let customer = new Customer(this, {id: "cus_Bob0KkpJ6WYco2"});
+        // await customer.selfPopulate();
+        // customer.data.metadata.full_name = "Foo Bar (is back)";
         // await customer.save();
-        // console.log("After saving: ", customer);
-        let customer = new Customer(this, {id: "cus_Bob0KkpJ6WYco2"});
-        await customer.selfPopulate();
-        customer.data.metadata.full_name = "Foo Bar (is back)";
-        await customer.save();
-        console.log("After updating: ", customer);
+        // console.log("After updating: ", customer);
         // await customer.selfPopulate();
         // console.log("After populating: ", customer);
 
         return Promise.reject(false);
       }
       catch (err) {
-        console.log("In catch: ", err);
-        return Promise.reject(err);
+        if (_.has(err, "isJoi") && _.get(err, "isJoi")) {
+          return Promise.reject(generateError(err.details, null));
+        }
+        return Promise.reject(generateError(null, err));
       }
 
       // const customer = new Customer(this.stripe);
@@ -103,5 +121,7 @@ class Stush {
   }
 }
 
+// debug("Tirth Bodawala");
+// process.exit();
 export default Stush;
 module.exports = Stush;

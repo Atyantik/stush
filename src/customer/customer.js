@@ -3,30 +3,50 @@
  */
 import _ from "lodash";
 import generateError from "../handler/error";
+import CustomerSchema, { validator as CustomerSchemaValidator } from "./schema";
+import Subscription from "../subscription/subscription";
 
 export default class Customer {
   data = {};
-  static stripe = {};
-  constructor(selfInstance, args) {
-    this.stripe = selfInstance.stripe;
-    this.data = args;
+  _stush = {};
+  _stripe = {};
+
+  constructor(stushInstance, customerData) {
+    this._stush= stushInstance;
+    this._stripe = stushInstance.stripe;
+    this.set(customerData, true);
+  }
+
+  // customer.set({
+  //  name: "Tirth",
+  //  Surname: "Bodawala"
+  // })
+
+  set(data, allowImmutable = false) {
+    let updatedData = _.cloneDeep(this.data);
+    _.assignIn(updatedData, data);
+    CustomerSchemaValidator(updatedData, allowImmutable);
+    this.data = updatedData;
+  }
+
+  toJson() {
+    return JSON.parse(JSON.stringify(_.pick(this, ["data"])));
   }
 
   async save() {
     try {
+      let data = {};
       if (_.has(this.data, "id")) {
-        let updateFields = [
-          "account_balance","business_vat_id","coupon",
-          "default_source","description","metadata","source"
-        ];
-        if (this.data.shipping) {
-          updateFields.push("shipping");
-        }
-        this.data = await this.stripe.customers.update(this.data.id, _.pick(this.data, updateFields));
+        debug("Updating");
+        let params = CustomerSchemaValidator(this.data);
+        data = await this._stripe.customers.update(this.data.id, params.value);
       }
       else {
-        this.data = await this.stripe.customers.create(this.data);
+        debug("Creating");
+        data = await this._stripe.customers.create(this.data);
       }
+      this.set(data, true);
+      return Promise.resolve(this);
     }
     catch (err) {
       return Promise.reject(err);
@@ -34,26 +54,27 @@ export default class Customer {
   }
 
   async selfPopulate() {
+    if (!this.data.id) {
+      return Promise.reject(generateError("Please provide a valid customer ID before self populating"));
+    }
     try {
-      this.data = await this.stripe.customers.retrieve(this.data.id);
+      this.data = await this._stripe.customers.retrieve(this.data.id);
+      return Promise.resolve(this);
     }
     catch (err) {
       return Promise.reject(err);
     }
   }
 
-  getCustomer(customerId) {
-    return this.stripe.customers.retrieve(customerId)
-      .then((customer) => {
-        return Promise.resolve(customer);
-      }).catch((error) => {
-        return Promise.reject(error);
-      });
-  }
-
   isSubscribed() {
     return _.get(this.data, "subscriptions.data.length", 0) !== 0;
   }
-}
 
-module.exports = Customer;
+  async addSubscription(args) {
+    if (!this.data.id) {
+      return Promise.reject(generateError("Please provide a valid customer ID to add a new subscription."));
+    }
+    let subscription = new Subscription(this._stush ,args);
+    debug("In addSubscription(): ", subscription); process.exit();
+  }
+}

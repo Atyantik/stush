@@ -37,12 +37,12 @@ export default class Customer {
     try {
       let data = {};
       if (_.has(this.data, "id")) {
-        debug("Updating");
+        debug("Updating Customer with: ", this.data);
         let params = CustomerSchemaValidator(this.data);
         data = await this._stripe.customers.update(this.data.id, params.value);
       }
       else {
-        debug("Creating");
+        debug("Updating Customer with: ", this.data);
         data = await this._stripe.customers.create(this.data);
       }
       this.set(data, true);
@@ -70,11 +70,27 @@ export default class Customer {
     return _.get(this.data, "subscriptions.data.length", 0) !== 0;
   }
 
-  async addSubscription(args) {
-    if (!this.data.id) {
-      return Promise.reject(generateError("Please provide a valid customer ID to add a new subscription."));
+  async addSubscription(subscription) {
+    try {
+      if (!this.data.id) {
+        return Promise.reject(generateError("Please provide a valid customer ID to add a new subscription."));
+      }
+      _.set(subscription, "data.customer", this.data.id);
+      await subscription.save();
+      this.selfPopulate();
+      return Promise.resolve(subscription);
     }
-    let subscription = new Subscription(this._stush ,args);
-    debug("In addSubscription(): ", subscription); process.exit();
+    catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
+  async fetchUpcomingInvoice (args) {
+    try {
+      // let invoice = new Invoice(this._stripe);
+    }
+    catch (err) {
+      return Promise.reject(err);
+    }
   }
 }

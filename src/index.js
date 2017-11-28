@@ -14,11 +14,24 @@ class Stush {
     enable_proration: "change_subscription",
     charge_instantly: false
   };
+
   constructor (options) {
     this.validator = new Validator();
     this.validator.validateStushOptions(options);
     _.assignIn(this.userOptions, options);
     this.stripe = new Stripe(_.get(this.userOptions, "secret"));
+  }
+
+  async createPlan (args) {
+    try {
+      let input = this.validator.createPlanInput(args);
+    }
+    catch (err) {
+      if (_.has(err, "isJoi") && _.get(err, "isJoi")) {
+        return Promise.reject(generateError(err.details));
+      }
+      return Promise.reject(generateError(null, err));
+    }
   }
 
   async createSubscription (args) {
@@ -70,8 +83,25 @@ class Stush {
     //
   }
 
-  async previewCancelationRefund (args) {
-    //
+  async previewCancellationRefund (args) {
+    try {
+      this.validator.previewCancelationRefundInput(args);
+      let customer = new Customer(this, {id: _.get(args, "customer")}),
+        proration_date = _.get(args, "refund_value_from", null),
+        response;
+      await customer.selfPopulate();
+      _.set(args, "preview_cancellation_refund", true);
+      const invoice = await customer.fetchUpcomingInvoice(args);
+      response = invoice.calculateProration(proration_date);
+      _.set(response, "invoice", invoice.toJson());
+      return Promise.resolve(response);
+    }
+    catch (err) {
+      if (_.has(err, "isJoi") && _.get(err, "isJoi")) {
+        return Promise.reject(generateError(err.details));
+      }
+      return Promise.reject(generateError(null, err));
+    }
   }
 
   async cancelSubscription (args) {
@@ -110,7 +140,5 @@ class Stush {
   }
 }
 
-// debug("Tirth Bodawala");
-// process.exit();
 export default Stush;
 module.exports = Stush;

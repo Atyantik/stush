@@ -4,6 +4,7 @@
 import _ from "lodash";
 import generateError from "../handler/error";
 import CustomerSchema, { validator as CustomerSchemaValidator } from "./schema";
+import Invoice from "../invoice/invoice";
 import Subscription from "../subscription/subscription";
 
 export default class Customer {
@@ -70,6 +71,20 @@ export default class Customer {
     return _.get(this.data, "subscriptions.data.length", 0) !== 0;
   }
 
+  extractSubscription(subscriptionId = null) {
+    const subscriptions = _.get(this.data, "subscriptions");
+    let requiredSubscription = null;
+    if (subscriptionId) {
+      for (let value of subscriptions.data) {
+        if (subscriptionId === value.id) {
+          requiredSubscription = value;
+          break;
+        }
+      }
+    }
+    return requiredSubscription ? requiredSubscription : _.get(this.data, "subscriptions.data.[0]");
+  }
+
   async addSubscription(subscription) {
     try {
       if (!this.data.id) {
@@ -87,7 +102,27 @@ export default class Customer {
 
   async fetchUpcomingInvoice (args) {
     try {
-      // let invoice = new Invoice(this._stripe);
+      if (!this.data.id) {
+        return Promise.reject(generateError("Please provide a valid customer ID to add a new subscription."));
+      }
+      let invoice = new Invoice(this._stush),
+        subscription = new Subscription(this._stush), params = {customer: this.data.id};
+      if (_.has(args, "preview_cancellation_refund") || _.has(args, "preview_proration")) {
+        subscription.set(this.extractSubscription(_.get(args, "subscription")), true);
+        _.set(params, "subscription_items", [{
+          id: subscription.data.items.data[0].id,
+          plan: subscription.data.items.data[0].plan.id
+        }]);
+        _.set(params, "subscription_proration_date", _.get(args, "refund_value_from"));
+        if (_.get(args, "preview_cancellation_refund", false)) {
+          _.set(params, "subscription_items[0].quantity", 0);
+        }
+      }
+      if (_.has(args, "subscription")) {
+        _.set(params, "subscription", _.get(args, "subscription"));
+      }
+      await invoice.populateWithUpcoming(params);
+      return Promise.resolve(invoice);
     }
     catch (err) {
       return Promise.reject(err);

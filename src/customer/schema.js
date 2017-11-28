@@ -41,15 +41,9 @@ export const validator = (input, allowImmutable = false) => {
   }
   if (!allowImmutable) {
     let mutableFields = [
-      "account_balance",
-      "business_vat_id",
-      "coupon",
-      "default_source",
-      "description",
-      "email",
       "metadata",
-      "source",
-      "shipping"
+      "name",
+      "statement_descriptor"
     ];
     _.set(output, "value", stripEmptyObjects(_.pick(input, mutableFields)));
   }

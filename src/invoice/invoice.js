@@ -14,6 +14,20 @@ export default class Invoice {
     this.set(data, true);
   }
 
+  static async fetchAllInvoices (stushInstance, args = {}) {
+    try {
+      const invoices = await stushInstance.stripe.invoices.list(args);
+      let set = new Set();
+      for (let invoice of invoices.data) {
+        set.add(new Invoice(stushInstance, invoice));
+      }
+      return Promise.resolve(set);
+    }
+    catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
   set(data, allowImmutable = false) {
     let updatedData = _.cloneDeep(this.data);
     _.assignIn(updatedData, data);

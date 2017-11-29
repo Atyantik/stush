@@ -33,6 +33,13 @@ const schema = Joi.object().keys({
   }).allow(null)
 });
 
+export const cancelSubscriptionSchema = Joi.object().keys({
+  subscription: Joi.string().token(),
+  cancel: Joi.string().valid("now", "after_billing_cycle").default("now"),
+  refund: Joi.number().positive(),
+  refund_value_from: Joi.number().positive().when("refund", {is: Joi.exist(), then: Joi.strip()}),
+});
+
 export const validator = (input, allowImmutable = false) => {
   // process the input
   let output = Joi.validate(input, schema);
@@ -49,4 +56,13 @@ export const validator = (input, allowImmutable = false) => {
   }
   return output;
 };
+
+export const cancelSubscriptionValidator = (input) => {
+  let output = Joi.validate(input, cancelSubscriptionSchema, {stripUnknown: true});
+  if (output.error) {
+    throw output.error;
+  }
+  return output;
+};
+
 export default schema;

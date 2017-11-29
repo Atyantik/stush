@@ -63,22 +63,55 @@ export default class Validator {
   }
 
   createPlanInput(args) {
-    let result = Joi.validate(args, createPlanSchema);
+    let result = Joi.validate(args, createPlanSchema, {allowUnknown: true});
     if (result.error) {
       throw result.error;
     }
-    // const daily = ["day", "days", "daily", "everyday", "day-to-day"],
-    //   weekly = ["week", "weeks", "weekly"],
-    //   monthly = ["month", "months", "monthly"],
-    //   yearly = ["year", "yearly"];
-    // _.set(args, "amount", _.get(args, "price"));
-    // let interval = _.get(args, "bill_every");
-    // const intervalArr = _.split(_.get(args, "bill_every"), " ", 2);
-    // if (intervalArr.length > 1) {
-    //   Joi.attempt(_.head(intervalArr), Joi.number()); // throws if fails
-    //   _.set(args, "interval_count", _.head(intervalArr));
-    //   interval = _.tail(intervalArr);
-    // }
+    // Formatting interval input for stripe.
+    const daily = ["day", "days", "daily", "everyday", "day-to-day"],
+      weekly = ["week", "weeks", "weekly"],
+      monthly = ["month", "months", "monthly"],
+      yearly = ["year", "yearly"];
+    _.set(args, "amount", _.get(args, "price"));
+    let interval = _.get(args, "bill_every");
+    const intervalArr = _.split(_.get(args, "bill_every"), " ", 2);
+    if (intervalArr.length > 1) {
+      Joi.attempt(_.head(intervalArr), Joi.number()); // throws if fails
+      if (_.head(intervalArr) > 1) {
+        _.set(args, "interval_count", _.parseInt(_.head(intervalArr)));
+      }
+      interval = _.last(intervalArr);
+    }
+    if (daily.includes(interval)) {
+      interval = "day";
+    }
+    else if (weekly.includes(interval)) {
+      interval = "week";
+    }
+    else if (monthly.includes(interval)) {
+      interval = "month";
+    }
+    else if (yearly.includes(interval)) {
+      interval = "year";
+    }
+    else {
+      throw generateError("Unable to parse \"bill_every\" value.");
+    }
+    _.set(args, "interval", interval);
+    // Formatting additional properties as metadata.
+    let stripePlanKeys = [
+      "id",
+      "name",
+      "amount",
+      "currency",
+      "metadata",
+      "interval",
+      "interval_count",
+      "statement_descriptor",
+    ];
+    let metadata = _.pick(args, _.keys(_.omit(args, stripePlanKeys)));
+    _.set(args, "metadata", metadata);
+    _.set(result, "params", deleteProperties(args, _.keys(_.omit(args, stripePlanKeys))));
     return result;
   }
 

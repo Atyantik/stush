@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import _ from "lodash";
 import Validator from "validations";
+import Plan from "./plan/plan";
 import Customer from "./customer/customer";
 import Subscription from "./subscription/subscription";
 import generateError from "./handler/error";
@@ -25,6 +26,36 @@ class Stush {
   async createPlan (args) {
     try {
       let input = this.validator.createPlanInput(args);
+      let plan = new Plan(this, input.params);
+      await plan.save();
+      return Promise.resolve(plan);
+    }
+    catch (err) {
+      if (_.has(err, "isJoi") && _.get(err, "isJoi")) {
+        return Promise.reject(generateError(err.details));
+      }
+      return Promise.reject(generateError(null, err));
+    }
+  }
+
+  async deletePlan (planId) {
+    try {
+      let plan = new Plan({id: planId});
+      await plan.delete();
+      return Promise.resolve(plan);
+    }
+    catch (err) {
+      if (_.has(err, "isJoi") && _.get(err, "isJoi")) {
+        return Promise.reject(generateError(err.details));
+      }
+      return Promise.reject(generateError(null, err));
+    }
+  }
+
+  async fetchAllPlans (args) {
+    try {
+      const plans = await Plan.fetchAllPlans(this, args);
+      return Promise.resolve(plans);
     }
     catch (err) {
       if (_.has(err, "isJoi") && _.get(err, "isJoi")) {
@@ -38,7 +69,8 @@ class Stush {
     let input = this.validator.createSubscriptionInput(args);
     if (!input.error) {
       try {
-        let subscription = new Subscription(this, _.get(input, "params.subscription")), customer = new Customer(this, _.get(input, "params.customer"));
+        let subscription = new Subscription(this, _.get(input, "params.subscription")),
+          customer = new Customer(this, _.get(input, "params.customer"));
         if (_.has(input, "params.customer.id")) {
           // Create subscription for provided customer.
           // Sync local instance with stripe instance of customer.
@@ -60,8 +92,8 @@ class Stush {
         debug("Subscription data: ", subscription.toJson());
         const resolved = {
           data: {
-            customer: customer.toJson(),
-            subscription: subscription.toJson()
+            customer: customer,
+            subscription: subscription
           },
           code: 200
         };
@@ -93,7 +125,7 @@ class Stush {
       _.set(args, "preview_cancellation_refund", true);
       const invoice = await customer.fetchUpcomingInvoice(args);
       response = invoice.calculateProration(proration_date);
-      _.set(response, "invoice", invoice.toJson());
+      _.set(response, "invoice", invoice);
       return Promise.resolve(response);
     }
     catch (err) {
@@ -107,12 +139,6 @@ class Stush {
   async cancelSubscription (args) {
     try {
       let input = this.validator.cancelSubscriptionInput(args);
-      // let invoices = await this.stripe.invoices.list({
-      //   customer: "cus_BqPO4KIbVqmiqa",
-      //   subscription: "sub_BqPQ8IwpKz1zBF",
-      //   limit: 1
-      // });
-      // debug(input); process.exit();
       if (_.has(args, "customer")) {
         if (this.userOptions.subscription_model === "single") {
           //
@@ -134,9 +160,26 @@ class Stush {
     }
   }
 
-  tinkerZone(customerId) {
-    let customer = new Customer(this.stripe);
-    return customer.isSubscribed(customerId);
+  async tinkerZone() {
+    let customer = new Customer(this, {id: "cus_BqPO4KIbVqmiqa"});
+
+    const source = await customer.detachSource("card_1BTUwHBunN0EZXFCwfwyRbhi");
+    debug(source); process.exit();
+
+    // await customer.selfPopulate();
+    // debug(customer.extractAllSubscriptions()); process.exit();
+
+    // const invoices = await customer.fetchAllInvoices();
+    // debug(invoices); process.exit();
+
+    // // End Subscription
+    // await customer.selfPopulate();
+    // let subscription = customer.extractSubscription();
+    // const sub = await customer.endSubscription({
+    //   subscription: "sub_BqQcUG2mNhuJ3c",
+    //   refund_value_from: 1511999595
+    // });
+    // debug(sub);  process.exit();
   }
 }
 

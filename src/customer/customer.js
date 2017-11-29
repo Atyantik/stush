@@ -3,7 +3,8 @@
  */
 import _ from "lodash";
 import generateError from "../handler/error";
-import CustomerSchema, { validator as CustomerSchemaValidator } from "./schema";
+import CustomerSchema, { validator as CustomerSchemaValidator, cancelSubscriptionValidator } from "./schema";
+import Source from "../source/source";
 import Invoice from "../invoice/invoice";
 import Subscription from "../subscription/subscription";
 
@@ -67,13 +68,37 @@ export default class Customer {
     }
   }
 
+  async attachSource (sourceId) {
+    try {
+      const source = await this._stripe.customers.createSource(this.data.id, {
+        source: sourceId
+      });
+      return Promise.resolve(new Source(this._stush, source));
+    }
+    catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
+  async detachSource (sourceId) {
+    try {
+      const source = await this._stripe.customers.deleteSource(this.data.id, {
+        source: sourceId
+      });
+      return Promise.resolve(new Source(this._stush, source));
+    }
+    catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
   isSubscribed() {
     return _.get(this.data, "subscriptions.data.length", 0) !== 0;
   }
 
   extractSubscription(subscriptionId = null) {
     const subscriptions = _.get(this.data, "subscriptions");
-    let requiredSubscription = null;
+    let requiredSubscription;
     if (subscriptionId) {
       for (let value of subscriptions.data) {
         if (subscriptionId === value.id) {
@@ -81,8 +106,23 @@ export default class Customer {
           break;
         }
       }
+      if (!requiredSubscription) {
+        throw generateError("Specified customer is not subscribed to subscription with provided ID.");
+      }
     }
-    return requiredSubscription ? requiredSubscription : _.get(this.data, "subscriptions.data.[0]");
+    else {
+      requiredSubscription = _.get(this.data, "subscriptions.data.[0]", {});
+    }
+    return new Subscription(this._stush, requiredSubscription);
+  }
+
+  extractAllSubscriptions () {
+    const subscriptions = _.get(this.data, "subscriptions.data");
+    let set = new Set();
+    for (let subscription of subscriptions) {
+      set.add(new Subscription(this._stush, subscription));
+    }
+    return set;
   }
 
   async addSubscription(subscription) {
@@ -100,15 +140,50 @@ export default class Customer {
     }
   }
 
+  async endSubscription(args) {
+    try {
+      let input = cancelSubscriptionValidator(args);
+      debug("Input: ", input);
+      // let subscription = new Subscription(this, {id: _.get(input, "value.subscription")});
+      let subscription = _.has(input, "value.subscription") ? this.extractSubscription(input.value.subscription) : this.extractSubscription();
+      debug("Extracted subscription: ", subscription);
+      if (_.has(input, "value.refund") || _.has(input, "value.refund_value_from")) {
+        // await subscription.selfPopulate();  // Need this in case of proration
+        //
+      }
+      await subscription.cancel(input.value.cancel === "after_billing_cycle");
+      return Promise.resolve(subscription);
+    }
+    catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
+  async fetchAllInvoices (args = {}) {
+    try {
+      _.assignIn(args, {
+        customer: this.data.id
+      });
+      let invoices = await Invoice.fetchAllInvoices(this._stush, args);
+      return Promise.resolve(invoices);
+    }
+    catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
   async fetchUpcomingInvoice (args) {
     try {
       if (!this.data.id) {
         return Promise.reject(generateError("Please provide a valid customer ID to add a new subscription."));
       }
-      let invoice = new Invoice(this._stush),
-        subscription = new Subscription(this._stush), params = {customer: this.data.id};
+      let subscription,
+        invoice = new Invoice(this._stush),
+        params = {customer: this.data.id};
+      // subscription = new Subscription(this._stush), params = {customer: this.data.id};
       if (_.has(args, "preview_cancellation_refund") || _.has(args, "preview_proration")) {
-        subscription.set(this.extractSubscription(_.get(args, "subscription")), true);
+        // subscription.set(this.extractSubscription(_.get(args, "subscription")), true);
+        subscription = this.extractSubscription(_.get(args, "subscription"));
         _.set(params, "subscription_items", [{
           id: subscription.data.items.data[0].id,
           plan: subscription.data.items.data[0].plan.id

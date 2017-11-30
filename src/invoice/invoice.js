@@ -14,7 +14,7 @@ export default class Invoice {
     this.set(data, true);
   }
 
-  static async fetchAllInvoices (stushInstance, args = {}) {
+  static async fetchAll (stushInstance, args = {}) {
     try {
       const invoices = await stushInstance.stripe.invoices.list(args);
       let set = new Set();
@@ -48,7 +48,7 @@ export default class Invoice {
     this.set(upcomingInvoice, true);
   }
 
-  calculateProration(proration_date = "now") {
+  calculateProration(proration_date) {
     let currentProrations = [];
     let cost = 0, invoiceItem = {};
     for (invoiceItem of this.data.lines.data) {

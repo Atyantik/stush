@@ -2,6 +2,7 @@
  * Created by ravindra on 29/11/17.
  */
 import _ from "lodash";
+import generateError from "../handler/error";
 
 export default class Source {
   data = {};
@@ -15,7 +16,20 @@ export default class Source {
   set (data) {
     let updatedData = _.cloneDeep(this.data);
     _.assignIn(updatedData, data);
-    // Validate data here
+    // TODO: Validate data here
     this.data = updatedData;
   }
+
+  // async selfPopulate () {
+  //   if (!this.data.id) {
+  //     throw generateError("Please provide a valid Source ID before self populating.");
+  //   }
+  //   try {
+  //     const thisSource = this._stripe.sources.retrieve(this.data.id);
+  //     debug(thisSource);
+  //   }
+  //   catch (err) {
+  //     return Promise.reject(err);
+  //   }
+  // }
 }

@@ -7,7 +7,11 @@ const __development = process.env.NODE_ENV === "development";
 const debug = (...args) => {
   if (!__development) return;
   // eslint-disable-next-line
-  return console.log("\n----------------\n",util.inspect(args, false, 15, true), "\n----------------\n");
+  return console.log(
+    "\n--------------------------------------------------------------------------------\n",
+    util.inspect(args, false, 15, true),
+    "\n--------------------------------------------------------------------------------\n"
+  );
 };
 
 const deleteProperties = (object, array) => {

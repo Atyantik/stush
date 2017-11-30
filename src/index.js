@@ -2,6 +2,7 @@ import Stripe from "stripe";
 import _ from "lodash";
 import Validator from "validations";
 import Plan from "./plan/plan";
+import Source from "./source/source";
 import Customer from "./customer/customer";
 import Subscription from "./subscription/subscription";
 import generateError from "./handler/error";
@@ -62,6 +63,17 @@ class Stush {
         return Promise.reject(generateError(err.details));
       }
       return Promise.reject(generateError(null, err));
+    }
+  }
+
+  async getCustomer (customerId) {
+    try {
+      let customer = new Customer(this, {id: customerId});
+      await customer.selfPopulate();
+      return Promise.resolve(customer);
+    }
+    catch (err) {
+      return Promise.reject(err);
     }
   }
 
@@ -162,9 +174,13 @@ class Stush {
 
   async tinkerZone() {
     let customer = new Customer(this, {id: "cus_BqPO4KIbVqmiqa"});
+    // let customer = new Customer(this, {id: "cus_BqNdEgmUTacvzP"});
 
-    const source = await customer.detachSource("card_1BTUwHBunN0EZXFCwfwyRbhi");
-    debug(source); process.exit();
+    // const invoice = await customer.fetchAnInvoice({subscription: "sub_BqPY8txbsmULmS"});
+    // debug(invoice); process.exit();
+
+    // const source = await customer.detachSource("card_1BTUwHBunN0EZXFCwfwyRbhi");
+    // debug(source); process.exit();
 
     // await customer.selfPopulate();
     // debug(customer.extractAllSubscriptions()); process.exit();
@@ -172,16 +188,20 @@ class Stush {
     // const invoices = await customer.fetchAllInvoices();
     // debug(invoices); process.exit();
 
-    // // End Subscription
-    // await customer.selfPopulate();
-    // let subscription = customer.extractSubscription();
-    // const sub = await customer.endSubscription({
-    //   subscription: "sub_BqQcUG2mNhuJ3c",
-    //   refund_value_from: 1511999595
-    // });
-    // debug(sub);  process.exit();
+    // End Subscription
+    await customer.selfPopulate();
+    // let subscription = customer.extractSubscription("sub_BrYmH9SMH7xadN");
+    const sub = await customer.endSubscription({
+      // subscription: subscription.data.id,
+      // cancel: "now",
+      // refund: 1500,
+      // refund_value_from: 1513000695
+    });
+    debug(sub);  process.exit();
   }
 }
 
 export default Stush;
+export { Customer };
 module.exports = Stush;
+// exports.Customer = Customer;

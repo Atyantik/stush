@@ -5,6 +5,7 @@ import _ from "lodash";
 import generateError from "../handler/error";
 import CustomerSchema, { validator as CustomerSchemaValidator, cancelSubscriptionValidator } from "./schema";
 import Source from "../source/source";
+import Refund from "../refund/refund";
 import Invoice from "../invoice/invoice";
 import Subscription from "../subscription/subscription";
 
@@ -18,11 +19,6 @@ export default class Customer {
     this._stripe = stushInstance.stripe;
     this.set(customerData, true);
   }
-
-  // customer.set({
-  //  name: "Tirth",
-  //  Surname: "Bodawala"
-  // })
 
   set(data, allowImmutable = false) {
     let updatedData = _.cloneDeep(this.data);
@@ -55,6 +51,10 @@ export default class Customer {
     }
   }
 
+  /**
+   * Syncs the local customer from Stripe.
+   * @returns {Promise.<*>}
+   */
   async selfPopulate() {
     if (!this.data.id) {
       return Promise.reject(generateError("Please provide a valid customer ID before self populating"));
@@ -68,6 +68,11 @@ export default class Customer {
     }
   }
 
+  /**
+   * Adds a source to customer.
+   * @param sourceId
+   * @returns {Promise.<*>}
+   */
   async attachSource (sourceId) {
     try {
       const source = await this._stripe.customers.createSource(this.data.id, {
@@ -80,6 +85,11 @@ export default class Customer {
     }
   }
 
+  /**
+   * Removes a source from customer. Falls back to removing card if source not found.
+   * @param sourceId
+   * @returns {Promise.<*>}
+   */
   async detachSource (sourceId) {
     try {
       const source = await this._stripe.customers.deleteSource(this.data.id, {
@@ -88,14 +98,27 @@ export default class Customer {
       return Promise.resolve(new Source(this._stush, source));
     }
     catch (err) {
+      if (_.has(err, "raw") && err.raw.param === "id" && _.startsWith(err.raw.message, "No such source")) {
+        const source = await this._stripe.customers.deleteCard(this.data.id, sourceId);
+        return Promise.resolve(new Source(this._stush, source));
+      }
       return Promise.reject(err);
     }
   }
 
+  /**
+   * Returns whether customer has any subscriptions.
+   * @returns {boolean}
+   */
   isSubscribed() {
     return _.get(this.data, "subscriptions.data.length", 0) !== 0;
   }
 
+  /**
+   * Returns the latest subscription of local customer instance if no argument is passed.
+   * @param subscriptionId
+   * @returns {Subscription}
+   */
   extractSubscription(subscriptionId = null) {
     const subscriptions = _.get(this.data, "subscriptions");
     let requiredSubscription;
@@ -116,6 +139,10 @@ export default class Customer {
     return new Subscription(this._stush, requiredSubscription);
   }
 
+  /**
+   * Fetches all the subscriptions on local customer instance.
+   * @returns {Set}
+   */
   extractAllSubscriptions () {
     const subscriptions = _.get(this.data, "subscriptions.data");
     let set = new Set();
@@ -125,6 +152,11 @@ export default class Customer {
     return set;
   }
 
+  /**
+   * Adds a new subscription to customer.
+   * @param subscription
+   * @returns {Promise.<*>}
+   */
   async addSubscription(subscription) {
     try {
       if (!this.data.id) {
@@ -140,19 +172,80 @@ export default class Customer {
     }
   }
 
-  async endSubscription(args) {
+  /**
+   *
+   * @param args
+   * @returns {Promise.<*>}
+   */
+  async endSubscription(args = {}) {
     try {
-      let input = cancelSubscriptionValidator(args);
-      debug("Input: ", input);
-      // let subscription = new Subscription(this, {id: _.get(input, "value.subscription")});
-      let subscription = _.has(input, "value.subscription") ? this.extractSubscription(input.value.subscription) : this.extractSubscription();
-      debug("Extracted subscription: ", subscription);
-      if (_.has(input, "value.refund") || _.has(input, "value.refund_value_from")) {
-        // await subscription.selfPopulate();  // Need this in case of proration
-        //
+      let response = {}, refundParams = {}, input = cancelSubscriptionValidator(args);
+      const atPeriodEnd = input.value.cancel === "after_billing_cycle",
+        subscriptionModel = _.get(this, "_stush.userOptions.subscription_model");
+      if (subscriptionModel === "multiple" && !_.has(input, "value.subscription")) {
+        return Promise.reject({
+          isJoi: true,
+          details: [{
+            message: "Subscription ID needs to be specified in Multiple Subscription Model.",
+            code: 500
+          }]
+        });
       }
-      await subscription.cancel(input.value.cancel === "after_billing_cycle");
-      return Promise.resolve(subscription);
+      let subscription = _.has(input, "value.subscription") ? this.extractSubscription(input.value.subscription) : this.extractSubscription();
+      // Check input with stush configuration options.
+      if (!atPeriodEnd && (_.has(input, "value.refund") || _.has(input, "value.refund_value_from"))) {
+        const prorationEnabled = _.get(this, "_stush.userOptions.enable_proration");
+        if (prorationEnabled !== "all" && prorationEnabled !== "cancel_subscription") {
+          return Promise.reject({
+            isJoi: true,
+            details: [{
+              message: "Proration is disabled in configuration options.",
+              code: 500
+            }]
+          });
+        }
+        // Fetch last invoice on this subscription for charge ID
+        const invoice = await this.fetchAnInvoice({
+          subscription: subscription.data.id
+        });
+        _.set(refundParams, "charge", _.get(invoice, "data.charge"));
+        if (_.has(input, "value.refund")) {
+          _.set(refundParams, "amount", _.get(input, "value.refund"));
+        }
+        else {
+          let upcomingInvoice = await this.fetchUpcomingInvoice({
+            preview_cancellation_refund: true,
+            customer: _.get(this, "data.id"),
+            subscription: _.get(subscription, "data.id"),
+            refund_value_from: _.get(input, "value.refund_value_from")
+          });
+          debug("Upcoming Invoice: ", upcomingInvoice.toJson());
+          const refundData = upcomingInvoice.calculateProration(_.get(input, "value.refund_value_from"));
+          debug("Refund data: ", refundData);
+          const prorationCost = _.get(refundData, "proration_cost");
+          if (Math.sign(prorationCost) === -1 || Math.sign(prorationCost) === -0) {
+            _.set(refundParams, "amount", Math.abs(prorationCost));
+          }
+        }
+      }
+      debug("Refund params: ", refundParams);
+      await subscription.cancel(atPeriodEnd);
+      _.set(response, "subscription", subscription.toJson());
+      if (!atPeriodEnd && (_.has(input, "value.refund") || _.has(input, "value.refund_value_from"))) {
+        const refund = await this.refund(refundParams);
+        _.set(response, "refund", refund.toJson());
+      }
+      return Promise.resolve(response);
+    }
+    catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
+  async refund (args) {
+    try {
+      const refund = await this._stripe.refunds.create(args);
+      return Promise.resolve(new Refund(this._stush, refund));
     }
     catch (err) {
       return Promise.reject(err);
@@ -164,7 +257,7 @@ export default class Customer {
       _.assignIn(args, {
         customer: this.data.id
       });
-      let invoices = await Invoice.fetchAllInvoices(this._stush, args);
+      let invoices = await Invoice.fetchAll(this._stush, args);
       return Promise.resolve(invoices);
     }
     catch (err) {
@@ -198,6 +291,21 @@ export default class Customer {
       }
       await invoice.populateWithUpcoming(params);
       return Promise.resolve(invoice);
+    }
+    catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
+  async fetchAnInvoice (args = {}) {
+    try {
+      const params = {
+        limit: 1,
+        customer: this.data.id
+      };
+      _.assignIn(params, args);
+      const invoice = await this._stripe.invoices.list(params);
+      return Promise.resolve(new Invoice(this._stush, _.head(invoice.data)));
     }
     catch (err) {
       return Promise.reject(err);

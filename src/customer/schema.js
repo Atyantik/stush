@@ -42,7 +42,11 @@ export const cancelSubscriptionSchema = Joi.object().keys({
 
 export const validator = (input, allowImmutable = false) => {
   // process the input
-  let output = Joi.validate(input, schema);
+  let options = {};
+  if (allowImmutable) {
+    _.set(options, "allowUnknown", true);
+  }
+  let output = Joi.validate(input, schema, options);
   if (output.error) {
     throw output.error;
   }
@@ -55,6 +59,34 @@ export const validator = (input, allowImmutable = false) => {
     _.set(output, "value", stripEmptyObjects(_.pick(input, mutableFields)));
   }
   return output;
+};
+
+export const formatCustomerData = (input) => {
+  const stripeCustomerKeys = [
+    "id",
+    "object",
+    "email",
+    "source",
+    "default_source",
+    "account_balance",
+    "business_vat_id",
+    "coupon",
+    "description",
+    "metadata",
+    "created",
+    "currency",
+    "delinquent",
+    "discount",
+    "livemode",
+    "shipping",
+    "sources",
+    "subscriptions",
+  ];
+  let metadata = _.pick(input, _.keys(_.omit(input, stripeCustomerKeys)));
+  if (!_.has(input, "metadata")) _.set(input, "metadata", {});
+  _.assignIn(_.get(input, "metadata"), metadata);
+  deleteProperties(input, _.keys(_.omit(input, stripeCustomerKeys)));
+  return input;
 };
 
 export const cancelSubscriptionValidator = (input) => {

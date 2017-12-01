@@ -53,4 +53,56 @@ export const validator = (input, allowImmutable = false) => {
   return output;
 };
 
+export const formatSubscriptionData = (input) => {
+  const stripeSubscriptionKeys = [
+    "id",
+    "object",
+    "application_fee_percent",
+    "billing",
+    "cancel_at_period_end",
+    "canceled_at",
+    "created",
+    "current_period_end",
+    "current_period_start",
+    "customer",
+    "discount",
+    "ended_at",
+    "livemode",
+    "quantity",
+    "start",
+    "status",
+    "trial_end",
+    "trial_start",
+    "coupon",
+    "days_until_due",
+    "items",
+    "source",
+    "metadata",
+    "prorate",
+    "proration_date",
+    "tax_percent",
+    "trial_period_days",
+    "trial_ends"
+  ];
+  if (_.has(input, "plan") && !_.isString(_.get(input, "plan"))) {
+    stripeSubscriptionKeys.push("plan");
+  }
+  else {
+    _.set(input, "items", []);
+    input.items.push({
+      plan: _.get(input, "plan"),
+      quantity: _.get(input, "plan_quantity", 1)
+    });
+  }
+  if (_.get(input, "trial_days", 0) > 0) {
+    _.set(input, "trial_period_days", _.get(input, "trial_days"));
+  }
+  _.unset(input, "trial_days");
+  let metadata = _.pick(input, _.keys(_.omit(input, stripeSubscriptionKeys)));
+  if (!_.has(input, "metadata")) _.set(input, "metadata", {});
+  _.assignIn(_.get(input, "metadata"), metadata);
+  deleteProperties(input, _.keys(_.omit(input, stripeSubscriptionKeys)));
+  return input;
+};
+
 export default schema;

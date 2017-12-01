@@ -3,7 +3,7 @@
  */
 import _ from "lodash";
 import generateError from "../handler/error";
-import CustomerSchema, { validator as CustomerSchemaValidator, cancelSubscriptionValidator } from "./schema";
+import CustomerSchema, { validator as CustomerSchemaValidator, formatCustomerData, cancelSubscriptionValidator } from "./schema";
 import Source from "../source/source";
 import Refund from "../refund/refund";
 import Invoice from "../invoice/invoice";
@@ -23,6 +23,7 @@ export default class Customer {
   set(data, allowImmutable = false) {
     let updatedData = _.cloneDeep(this.data);
     _.assignIn(updatedData, data);
+    updatedData = formatCustomerData(updatedData);
     CustomerSchemaValidator(updatedData, allowImmutable);
     this.data = updatedData;
   }
@@ -40,9 +41,10 @@ export default class Customer {
         data = await this._stripe.customers.update(this.data.id, params.value);
       }
       else {
-        debug("Updating Customer with: ", this.data);
+        debug("Creating Customer with: ", this.data);
         data = await this._stripe.customers.create(this.data);
       }
+      debug(data);
       this.set(data, true);
       return Promise.resolve(this);
     }
@@ -164,10 +166,10 @@ export default class Customer {
       }
       _.set(subscription, "data.customer", this.data.id);
       await subscription.save();
-      this.selfPopulate();
       return Promise.resolve(subscription);
     }
     catch (err) {
+      debug(err);
       return Promise.reject(err);
     }
   }

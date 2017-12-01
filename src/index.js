@@ -27,7 +27,7 @@ class Stush {
   async createPlan (args) {
     try {
       let input = this.validator.createPlanInput(args);
-      let plan = new Plan(this, input.params);
+      let plan = new Plan(this, input.value);
       await plan.save();
       return Promise.resolve(plan);
     }
@@ -41,7 +41,7 @@ class Stush {
 
   async deletePlan (planId) {
     try {
-      let plan = new Plan({id: planId});
+      let plan = new Plan(this, {id: planId});
       await plan.delete();
       return Promise.resolve(plan);
     }
@@ -55,8 +55,22 @@ class Stush {
 
   async fetchAllPlans (args) {
     try {
-      const plans = await Plan.fetchAllPlans(this, args);
+      const plans = await Plan.fetchAll(this, args);
       return Promise.resolve(plans);
+    }
+    catch (err) {
+      if (_.has(err, "isJoi") && _.get(err, "isJoi")) {
+        return Promise.reject(generateError(err.details));
+      }
+      return Promise.reject(generateError(null, err));
+    }
+  }
+
+  async createCustomer (customerData) {
+    try {
+      let customer = new Customer(this, customerData);
+      await customer.save();
+      return Promise.resolve(customer);
     }
     catch (err) {
       if (_.has(err, "isJoi") && _.get(err, "isJoi")) {
@@ -79,11 +93,12 @@ class Stush {
 
   async createSubscription (args) {
     let input = this.validator.createSubscriptionInput(args);
+    // debug("Vanguard validation: ", input.value);process.exit();
     if (!input.error) {
       try {
-        let subscription = new Subscription(this, _.get(input, "params.subscription")),
-          customer = new Customer(this, _.get(input, "params.customer"));
-        if (_.has(input, "params.customer.id")) {
+        let subscription = new Subscription(this, _.get(input, "value.subscription")),
+          customer = new Customer(this, _.get(input, "value.customer"));
+        if (_.has(input, "value.customer.id")) {
           // Create subscription for provided customer.
           // Sync local instance with stripe instance of customer.
           await customer.selfPopulate();
@@ -100,8 +115,6 @@ class Stush {
           await customer.save();
           subscription = await customer.addSubscription(subscription);
         }
-        debug("Customer data: ", customer.toJson());
-        debug("Subscription data: ", subscription.toJson());
         const resolved = {
           data: {
             customer: customer,
@@ -201,7 +214,18 @@ class Stush {
   }
 }
 
+// export Stush;
 export default Stush;
-export { Customer };
-module.exports = Stush;
+// export { Customer };
+// export default test = {
+//   Stush,
+//   Customer
+// }
+// module.exports = Stush;
+module.exports = {
+  Stush: Stush,
+  Plan: Plan,
+  Customer: Customer,
+  Subscription: Subscription
+};
 // exports.Customer = Customer;

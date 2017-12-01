@@ -2,7 +2,7 @@
  * Created by ravindra on 28/11/17.
  */
 import _ from "lodash";
-import PlanSchema, {validator as PlanSchemaValidator} from "./schema";
+import PlanSchema, {validator as PlanSchemaValidator, formatPlanData} from "./schema";
 import generateError from "../handler/error";
 
 export default class Plan {
@@ -14,7 +14,7 @@ export default class Plan {
     this.set(data, true);
   }
 
-  static async fetchAllPlans(stushInstance, args = {}) {
+  static async fetchAll(stushInstance, args = {}) {
     try {
       const plans = await stushInstance.stripe.plans.list(args);
       let set = new Set();
@@ -29,7 +29,12 @@ export default class Plan {
   }
 
   set (data, allowImmutable = false) {
-    this.data = data;
+    let updatedData = _.cloneDeep(this.data);
+    _.assignIn(updatedData, data);
+    debug("before: ", updatedData);
+    updatedData = formatPlanData(updatedData);
+    debug("after: ", updatedData);
+    this.data = updatedData;
   }
 
   async save () {

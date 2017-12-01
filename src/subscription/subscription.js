@@ -2,7 +2,7 @@
  * Created by ravindra on 22/11/17.
  */
 import _ from "lodash";
-import SubscriptionSchema, {validator as SubscriptionSchemaValidator} from "./schema";
+import SubscriptionSchema, {validator as SubscriptionSchemaValidator, formatSubscriptionData} from "./schema";
 import generateError from "../handler/error";
 
 export default class Subscription {
@@ -16,6 +16,9 @@ export default class Subscription {
   set(data, allowImmutable = false) {
     let updatedData = _.cloneDeep(this.data);
     _.assignIn(updatedData, data);
+    debug("In sub set (before): ", updatedData);
+    updatedData = formatSubscriptionData(updatedData);
+    debug("In sub set: ", updatedData);
     SubscriptionSchemaValidator(updatedData, allowImmutable);
     this.data = updatedData;
   }

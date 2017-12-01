@@ -67,62 +67,63 @@ export default class Validator {
     if (result.error) {
       throw result.error;
     }
-    // Formatting interval input for stripe.
-    const daily = ["day", "days", "daily", "everyday", "day-to-day"],
-      weekly = ["week", "weeks", "weekly"],
-      monthly = ["month", "months", "monthly"],
-      yearly = ["year", "yearly"];
-    _.set(args, "amount", _.get(args, "price"));
-    let interval = _.get(args, "bill_every");
-    const intervalArr = _.split(_.get(args, "bill_every"), " ", 2);
-    if (intervalArr.length > 1) {
-      Joi.attempt(_.head(intervalArr), Joi.number()); // throws if fails
-      if (_.head(intervalArr) > 1) {
-        _.set(args, "interval_count", _.parseInt(_.head(intervalArr)));
-      }
-      interval = _.last(intervalArr);
-    }
-    if (daily.includes(interval)) {
-      interval = "day";
-    }
-    else if (weekly.includes(interval)) {
-      interval = "week";
-    }
-    else if (monthly.includes(interval)) {
-      interval = "month";
-    }
-    else if (yearly.includes(interval)) {
-      interval = "year";
-    }
-    else {
-      throw generateError("Unable to parse \"bill_every\" value.");
-    }
-    _.set(args, "interval", interval);
-    // Formatting additional properties as metadata.
-    let stripePlanKeys = [
-      "id",
-      "name",
-      "amount",
-      "currency",
-      "metadata",
-      "interval",
-      "interval_count",
-      "statement_descriptor",
-    ];
-    let metadata = _.pick(args, _.keys(_.omit(args, stripePlanKeys)));
-    _.set(args, "metadata", metadata);
-    _.set(result, "params", deleteProperties(args, _.keys(_.omit(args, stripePlanKeys))));
+    // // Formatting interval input for stripe.
+    // const daily = ["day", "days", "daily", "everyday", "day-to-day"],
+    //   weekly = ["week", "weeks", "weekly"],
+    //   monthly = ["month", "months", "monthly"],
+    //   yearly = ["year", "yearly"];
+    // _.set(args, "amount", _.get(args, "price"));
+    // let interval = _.get(args, "bill_every");
+    // const intervalArr = _.split(_.get(args, "bill_every"), " ", 2);
+    // if (intervalArr.length > 1) {
+    //   Joi.attempt(_.head(intervalArr), Joi.number()); // throws if fails
+    //   if (_.head(intervalArr) > 1) {
+    //     _.set(args, "interval_count", _.parseInt(_.head(intervalArr)));
+    //   }
+    //   interval = _.last(intervalArr);
+    // }
+    // if (daily.includes(interval)) {
+    //   interval = "day";
+    // }
+    // else if (weekly.includes(interval)) {
+    //   interval = "week";
+    // }
+    // else if (monthly.includes(interval)) {
+    //   interval = "month";
+    // }
+    // else if (yearly.includes(interval)) {
+    //   interval = "year";
+    // }
+    // else {
+    //   throw generateError("Unable to parse \"bill_every\" value.");
+    // }
+    // _.set(args, "interval", interval);
+    // // Formatting additional properties as metadata.
+    // let stripePlanKeys = [
+    //   "id",
+    //   "name",
+    //   "amount",
+    //   "currency",
+    //   "metadata",
+    //   "interval",
+    //   "interval_count",
+    //   "statement_descriptor",
+    // ];
+    // let metadata = _.pick(args, _.keys(_.omit(args, stripePlanKeys)));
+    // _.set(args, "metadata", metadata);
+    // _.set(result, "params", deleteProperties(args, _.keys(_.omit(args, stripePlanKeys))));
     return result;
   }
 
   createSubscriptionInput(args) {
     let result = Joi.validate(args, createSubscriptionSchema, {allowUnknown: true});
-    if (_.has(args, "customer")) {
-      if (typeof args.customer === "string") {
-        _.set(args, "customer", {id: args.customer});
+    if (_.has(result, "value.customer")) {
+      let customerInput = _.get(result, "value.customer");
+      if (typeof customerInput === "string") {
+        _.set(result, "value.customer", {id: customerInput});
       }
       else {
-        let stripeCustomerKeys = [
+        const stripeCustomerKeys = [
           "email",
           "source",
           "default_source",
@@ -132,29 +133,29 @@ export default class Validator {
           "description",
           "metadata",
         ];
-        let metadata = _.pick(args.customer, _.keys(_.omit(args.customer, stripeCustomerKeys)));
-        _.set(args, "customer.metadata", {});
-        _.assignIn(_.get(args, "customer.metadata"), metadata);
-        _.set(args, "customer", deleteProperties(args.customer, _.keys(_.omit(args.customer, stripeCustomerKeys))));
+        let metadata = _.pick(customerInput, _.keys(_.omit(customerInput, stripeCustomerKeys)));
+        _.set(result, "value.customer.metadata", {});
+        _.assignIn(_.get(result, "value.customer.metadata"), metadata);
+        _.set(result, "value.customer", deleteProperties(_.get(result, "value.customer"), _.keys(_.omit(_.get(result, "value.customer"), stripeCustomerKeys))));
       }
     }
-    if (_.get(args, "subscription.trial_days", 0) > 0) {
-      _.set(args, "subscription.trial_period_days", _.get(args, "subscription.trial_days"));
-    }
-    _.unset(args, "subscription.trial_days");
-    _.set(args, "subscription.items", []);
-    args.subscription.items.push({
-      plan: _.get(args, "subscription.plan"),
-      quantity: _.get(args, "subscription.plan_quantity", 1)
-    });
-    _.set(result, "params", _.omit(args, [
-      "customer.user_id",
-      "customer.full_name",
-      "customer.phone",
-      "subscription.plan",
-      "subscription.plan_quantity",
-      "value"
-    ]));
+    // if (_.get(args, "subscription.trial_days", 0) > 0) {
+    //   _.set(args, "subscription.trial_period_days", _.get(args, "subscription.trial_days"));
+    // }
+    // _.unset(args, "subscription.trial_days");
+    // _.set(args, "subscription.items", []);
+    // args.subscription.items.push({
+    //   plan: _.get(args, "subscription.plan"),
+    //   quantity: _.get(args, "subscription.plan_quantity", 1)
+    // });
+    // _.set(result, "params", _.omit(args, [
+    //   "customer.user_id",
+    //   "customer.full_name",
+    //   "customer.phone",
+    //   "subscription.plan",
+    //   "subscription.plan_quantity",
+    //   "value"
+    // ]));
 
     return result;
   }

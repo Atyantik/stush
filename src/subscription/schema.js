@@ -26,6 +26,13 @@ const schema = Joi.object().keys({
   trial_period_days: Joi.number().positive(),   // Only during creation of subscription.
 });
 
+export const changeSubscriptionSchema = Joi.object().keys({
+  subscription: Joi.alternatives([Joi.string().token(), Joi.object()]),
+  plan_to_change: Joi.string(),
+  plan: Joi.string().required(),
+  prorate_from: Joi.number().positive()
+});
+
 export const validator = (input, allowImmutable = false) => {
   let output = Joi.validate(input, schema, {allowUnknown: true});
   if (output.error) {
@@ -103,6 +110,22 @@ export const formatSubscriptionData = (input) => {
   _.assignIn(_.get(input, "metadata"), metadata);
   deleteProperties(input, _.keys(_.omit(input, stripeSubscriptionKeys)));
   return input;
+};
+
+export const changeSubscriptionValidator = input => {
+  let output = Joi.validate(input, changeSubscriptionSchema);
+  if (output.error) {
+    throw output.error;
+  }
+  let subscription = _.get(input, "subscription"),
+    subscriptionItem = subscription.extractSubscriptionItem(_.get(input, "plan_to_change", null));
+  _.set(output, "value.plan_to_change", _.get(subscriptionItem, "plan.id"));
+  _.set(output, "value.items", [{
+    id: subscriptionItem.id,
+    plan: _.get(input, "plan")
+  }]);
+
+  return output;
 };
 
 export default schema;

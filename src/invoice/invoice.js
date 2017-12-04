@@ -43,18 +43,27 @@ export default class Invoice {
     if (!_.has(args, "customer")) {
       return Promise.reject(generateError("Please provide a valid customer ID to add a new subscription."));
     }
+    if (!_.has(args, "subscription")) {
+      return Promise.reject(generateError("Please provide a valid subscription ID to add a new subscription."));
+    }
     let params = sanitizePopulateWithUpcoming(args);
-    let upcomingInvoice = await this._stripe.invoices.retrieveUpcoming(args.customer, params);
+    let upcomingInvoice = await this._stripe.invoices.retrieveUpcoming(args.customer, args.subscription, params);
     this.set(upcomingInvoice, true);
   }
 
-  calculateProration(proration_date) {
+  calculateProration(proration_date, changeInBillingCycle = false) {
     let currentProrations = [];
     let cost = 0, invoiceItem = {};
-    for (invoiceItem of this.data.lines.data) {
-      if (invoiceItem.period.start == proration_date) {
-        currentProrations.push(invoiceItem);
-        cost += invoiceItem.amount;
+    if (changeInBillingCycle) {
+      cost = this.data.subtotal;
+      currentProrations = this.data.lines.data;
+    }
+    else {
+      for (invoiceItem of this.data.lines.data) {
+        if (invoiceItem.period.start == proration_date) {
+          currentProrations.push(invoiceItem);
+          cost += invoiceItem.amount;
+        }
       }
     }
     return {

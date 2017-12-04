@@ -56,10 +56,6 @@ export default class Plan {
     }
   }
 
-  toJson () {
-    return JSON.parse(JSON.stringify(_.omit(this, ["_stripe"])));
-  }
-
   async selfPopulate () {
     if (!this.data.id) {
       return Promise.reject(generateError("Please provide a valid customer ID before self populating"));
@@ -81,5 +77,17 @@ export default class Plan {
     catch (err) {
       return Promise.reject(err);
     }
+  }
+
+  toJson () {
+    return JSON.parse(JSON.stringify(_.omit(this, ["_stripe"])));
+  }
+
+  getInterval () {
+    return this.data.interval_count + " " + this.data.interval;
+  }
+
+  getPrice () {
+    return this.data.amount;
   }
 }

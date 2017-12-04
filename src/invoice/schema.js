@@ -45,6 +45,9 @@ export const sanitizePopulateWithUpcoming = args => {
   if (_.has(args, "customer")) {
     omit.push("customer");
   }
+  if (_.has(args, "subscription")) {
+    omit.push("subscription");
+  }
   _.assignIn(params, _.omit(args, omit));
   return params;
 };

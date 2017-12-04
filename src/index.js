@@ -150,7 +150,7 @@ class Stush {
       _.set(args, "preview_cancellation_refund", true);
       const invoice = await customer.fetchUpcomingInvoice(args);
       response = invoice.calculateProration(proration_date);
-      _.set(response, "invoice", invoice);
+      _.set(response, "upcoming_invoice", invoice);
       return Promise.resolve(response);
     }
     catch (err) {

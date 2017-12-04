@@ -33,6 +33,14 @@ const schema = Joi.object().keys({
   }).allow(null)
 });
 
+export const previewProrationSchema = Joi.object().keys({
+  subscription: Joi.alternatives([Joi.string().token(), Joi.object()]),
+  cancellation_proration: Joi.boolean().default(false),
+  plan_to_change: Joi.string(),
+  plan: Joi.string().when("cancellation_proration", {is: false, then: Joi.required()}),
+  prorate_from: Joi.number().positive().when("cancellation_proration", {is: false, then: Joi.required()})
+});
+
 export const cancelSubscriptionSchema = Joi.object().keys({
   subscription: Joi.string().token(),
   cancel: Joi.string().valid("now", "after_billing_cycle").default("now"),
@@ -87,6 +95,29 @@ export const formatCustomerData = (input) => {
   _.assignIn(_.get(input, "metadata"), metadata);
   deleteProperties(input, _.keys(_.omit(input, stripeCustomerKeys)));
   return input;
+};
+
+export const previewProrationValidator = input => {
+  let output = Joi.validate(input, previewProrationSchema);
+  if (output.error) {
+    throw output.error;
+  }
+  let subscription = _.get(input, "subscription"),
+    subscriptionItem = subscription.extractSubscriptionItem(_.get(input, "plan_to_change", null));
+  _.set(output, "value.plan_to_change", _.get(subscriptionItem, "plan.id"));
+  _.set(output, "value.items", [{
+    id: subscriptionItem.id,
+    plan: _.get(input, "plan")
+  }]);
+  if (_.get(input, "cancellation_proration")) {
+    _.set(output, "value.preview_cancellation_refund", true);
+  }
+  else {
+    _.set(output, "value.preview_proration", true);
+  }
+  _.unset(output, "value.cancellation_proration");
+
+  return output;
 };
 
 export const cancelSubscriptionValidator = (input) => {

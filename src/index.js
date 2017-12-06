@@ -2,7 +2,7 @@ import Stripe from "stripe";
 import _ from "lodash";
 import Validator from "validations";
 import Plan from "./plan/plan";
-import Source from "./source/source";
+import Invoice from "./invoice/invoice";
 import Customer from "./customer/customer";
 import Subscription from "./subscription/subscription";
 import generateError from "./handler/error";
@@ -13,15 +13,28 @@ makeUtilsGlobal();
 class Stush {
   userOptions = {
     subscription_model: "multiple",
-    enable_proration: "change_subscription",
+    proration: "change_subscription",
     charge_instantly: false
   };
+  stripe = {};
 
   constructor (options) {
     this.validator = new Validator();
     this.validator.validateStushOptions(options);
     _.assignIn(this.userOptions, options);
     this.stripe = new Stripe(_.get(this.userOptions, "secret"));
+  }
+
+  fetchModel() {
+    return _.get(this, "userOptions.subscription_model");
+  }
+
+  fetchProrationSetting() {
+    return _.get(this, "userOptions.proration");
+  }
+
+  chargesInstantly() {
+    return _.get(this, "userOptions.charge_instantly");
   }
 
   async createPlan (args) {
@@ -102,7 +115,7 @@ class Stush {
           // Create subscription for provided customer.
           // Sync local instance with stripe instance of customer.
           await customer.selfPopulate();
-          if (this.userOptions.subscription_model === "single") {
+          if (this.fetchModel() === "single") {
             if (customer.isSubscribed()) {
               return Promise.reject(generateError("Only one subscription is allowed per user in \"single subscription model\""));
             }
@@ -165,7 +178,7 @@ class Stush {
     try {
       let input = this.validator.cancelSubscriptionInput(args);
       if (_.has(args, "customer")) {
-        if (this.userOptions.subscription_model === "single") {
+        if (this.fetchModel() === "single") {
           //
         }
       }
@@ -203,7 +216,7 @@ class Stush {
 
     // End Subscription
     await customer.selfPopulate();
-    // let subscription = customer.extractSubscription("sub_BrYmH9SMH7xadN");
+    // let subscription = await customer.fetchSubscription("sub_BrYmH9SMH7xadN");
     const sub = await customer.endSubscription({
       // subscription: subscription.data.id,
       // cancel: "now",
@@ -225,6 +238,7 @@ export default Stush;
 module.exports = {
   Stush: Stush,
   Plan: Plan,
+  Invoice: Invoice,
   Customer: Customer,
   Subscription: Subscription
 };

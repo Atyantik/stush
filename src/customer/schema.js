@@ -103,7 +103,7 @@ export const previewProrationValidator = input => {
     throw output.error;
   }
   let subscription = _.get(input, "subscription"),
-    subscriptionItem = subscription.extractSubscriptionItem(_.get(input, "plan_to_change", null));
+    subscriptionItem = subscription.fetchSubscriptionItem(_.get(input, "plan_to_change", null));
   _.set(output, "value.plan_to_change", _.get(subscriptionItem, "plan.id"));
   _.set(output, "value.items", [{
     id: subscriptionItem.id,
@@ -121,6 +121,9 @@ export const previewProrationValidator = input => {
 };
 
 export const cancelSubscriptionValidator = (input) => {
+  if (_.has(input, "id")) {
+    _.set(input, "subscription", _.get(input, "id"));
+  }
   let output = Joi.validate(input, cancelSubscriptionSchema, {stripUnknown: true});
   if (output.error) {
     throw output.error;

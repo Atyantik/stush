@@ -8,7 +8,7 @@ import generateError from "./handler/error";
 const stushOptionsSchema = Joi.object().keys({
   secret: Joi.string().token().required(),
   subscription_model: Joi.string().valid("single", "multiple"),
-  enable_proration: Joi.string().valid("all", "none", "change_subscription", "cancel_subscription"),
+  proration: Joi.string().valid("all", "none", "change_subscription", "cancel_subscription"),
   charge_instantly: Joi.boolean()
 });
 
@@ -32,7 +32,7 @@ const createSubscriptionSchema = Joi.object().keys({
     plan: Joi.string().required(),
     plan_quantity: Joi.number().positive(),
     source: Joi.string().token(),
-    tax_percent: Joi.number().positive().precision(2),
+    tax_percent: Joi.number().min(0).precision(2),
     trial_ends: Joi.number().positive(),
     trial_days: Joi.number().min(0)
   }).without("trial_ends", "trial_days")

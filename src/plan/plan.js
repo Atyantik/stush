@@ -58,7 +58,7 @@ export default class Plan {
 
   async selfPopulate () {
     if (!this.data.id) {
-      return Promise.reject(generateError("Please provide a valid customer ID before self populating"));
+      return Promise.reject(generateError("Please provide a valid plan ID before self populating"));
     }
     try {
       this.data = await this._stripe.plans.retrieve(this.data.id);

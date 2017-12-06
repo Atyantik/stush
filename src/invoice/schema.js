@@ -12,7 +12,7 @@ const schema = Joi.object().keys({
   metadata: Joi.object().allow(null),
   paid: Joi.boolean(),
   statement_descriptor: Joi.string().allow(null),
-  tax_percent: Joi.number().positive().precision(2).allow(null)
+  tax_percent: Joi.number().min(0).precision(2).allow(null)
 });
 
 export const validator = (input, allowImmutable = false) => {

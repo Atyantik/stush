@@ -185,7 +185,7 @@ export default class Customer {
         return Promise.reject({
           isJoi: true,
           details: [{
-            message: "Subscription is required in Multiple Subscription Model.",
+            message: "Valid subscription is required in Multiple Subscription Model.",
             code: 500
           }]
         });
@@ -245,7 +245,7 @@ export default class Customer {
         return Promise.reject({
           isJoi: true,
           details: [{
-            message: "Subscription is required in Multiple Subscription Model.",
+            message: "Valid subscription is required in Multiple Subscription Model.",
             code: 500
           }]
         });
@@ -266,7 +266,7 @@ export default class Customer {
         return Promise.reject({
           isJoi: true,
           details: [{
-            message: "Subscription is required in Multiple Subscription Model.",
+            message: "Valid subscription is required in Multiple Subscription Model.",
             code: 500
           }]
         });
@@ -290,7 +290,7 @@ export default class Customer {
         return Promise.reject({
           isJoi: true,
           details: [{
-            message: "Subscription is required in Multiple Subscription Model.",
+            message: "Valid subscription is required in Multiple Subscription Model.",
             code: 500
           }]
         });
@@ -319,22 +319,36 @@ export default class Customer {
   }
 
   async previewProration (toSubscription, fromSubscription = null) {
+    if (!_.get(toSubscription, "data.cancellation_proration", false) && _.has(toSubscription, "data.id")) {
+      throw generateError("Existing subscription cannot be passed to preview plan change proration.");
+    }
     try {
       await this.selfPopulate();
-      if (this._stush.fetchModel() === "multiple" && !fromSubscription) {
+      if (this._stush.fetchModel() === "multiple" && !_.has(fromSubscription, "data.id") && !_.get(toSubscription, "data.cancellation_proration", false)) {
         return Promise.reject({
           isJoi: true,
           details: [{
-            message: "Subscription is required in Multiple Subscription Model.",
+            message: "Valid subscription is required in Multiple Subscription Model.",
             code: 500
           }]
         });
       }
       if (!fromSubscription) {
-        fromSubscription = await this.fetchSubscription();
+        if (_.get(toSubscription, "data.cancellation_proration", false)) {
+          fromSubscription = toSubscription.clone();
+        }
+        else {
+          fromSubscription = await this.fetchSubscription();
+        }
+      }
+      if (_.has(fromSubscription, "data.id")) {
+        await fromSubscription.selfPopulate();
       }
       let params = {},
         subscriptionItem = fromSubscription.fetchSubscriptionItem();
+      _.set(params, "value.subscription", fromSubscription);
+      _.set(params, "value.prorate_from", _.get(toSubscription, "data.prorate_from", _.ceil(new Date()/1000)));
+      _.set(toSubscription, "data.items[0].id", _.get(subscriptionItem, "id"));
       _.set(params, "value.items", _.get(toSubscription, "data.items"));
       if (!_.has(toSubscription, "data.items") || !_.isArray(_.get(toSubscription, "data.items"))) {
         _.set(params, "value.plan_to_change", _.get(subscriptionItem, "plan.id"));
@@ -350,19 +364,21 @@ export default class Customer {
         _.set(params, "value.preview_proration", true);
       }
       _.unset(params, "value.cancellation_proration");
-      // debug("Upcoming invoice params: ", params); process.exit();
+      debug("Upcoming invoice params: ", params); //process.exit();
       const upcomingInvoice = await this.fetchUpcomingInvoice(params.value);
+      // debug(upcomingInvoice.data); process.exit();
       // Check if there is a change in billing period.
       const planToChange = new Plan(this._stush, {
-        id: _.get(params, "value.plan_to_change")
+        id: _.get(subscriptionItem, "plan.id")
       });
       await planToChange.selfPopulate();
       const newPlan = new Plan(this._stush, {
-        id: _.get(args, "plan")
+        id: _.get(params, "value.items[0].plan")
       });
       await newPlan.selfPopulate();
       const changeInBillingCycle = planToChange.getInterval() !== newPlan.getInterval();
-      const prorationData = upcomingInvoice.calculateProration(_.get(args, "prorate_from"), changeInBillingCycle);
+      const prorationData = upcomingInvoice.calculateProration(_.get(params, "value.prorate_from"), changeInBillingCycle);
+      debug(prorationData); process.exit();
       _.set(prorationData, "upcoming_invoice", upcomingInvoice);
       return Promise.resolve(prorationData);
     }

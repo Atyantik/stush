@@ -7,19 +7,33 @@ import generateError from "../handler/error";
 
 export default class Plan {
   data = {};
-  _stripe = {};
+  _stush = {};
+  _cache = {};
 
   constructor (stushInstance, data = {}) {
-    this._stripe = stushInstance.stripe;
+    this._stush = stushInstance;
+    this._cache = stushInstance.fetchCacheInstance();
     this.set(data, true);
   }
 
   static async fetchAll(stushInstance, args = {}) {
     try {
-      const plans = await stushInstance.stripe.plans.list(args);
-      let set = new Set();
-      for (let plan of plans.data) {
-        set.add(new Plan(stushInstance, plan));
+      const cache = stushInstance.fetchCacheInstance(),
+        cacheLifetime = stushInstance.fetchCacheLifetime(),
+        cacheKeys = cache.keys();
+      let set = [];
+      if (cacheKeys.includes("all_plans")) {
+        set = cache.get("all_plans");
+      }
+      else {
+        const plans = await stushInstance.stripe.plans.list(args);
+        for (let plan of plans.data) {
+          set.push(new Plan(stushInstance, plan));
+          if (!cacheKeys.includes(_.get(plan, "id"))) {
+            cache.put(_.get(plan, "id"), new Plan(stushInstance, plan), cacheLifetime);
+          }
+        }
+        cache.put("all_plans", set, cacheLifetime);
       }
       return Promise.resolve(set);
     }
@@ -41,14 +55,28 @@ export default class Plan {
     try {
       debug("Updating Plan with: ", this.data);
       let params = PlanSchemaValidator(this.data);
-      const data = await this._stripe.plans.update(this.data.id, params.value);
+      const data = await this._stush.stripe.plans.update(this.data.id, params.value);
+      this._cache.put(data.id, new Plan(this._stush, data), this._stush.fetchCacheLifetime());
+      if (!this._cache.keys().includes("all_plans")) {
+        await Plan.fetchAll(this._stush);
+      }
+      else {
+        this.updateAllPlansCache(data);
+      }
       this.set(data, true);
       return Promise.resolve(this);
     }
     catch (err) {
       if (_.has(err, "raw") && err.raw.param === "plan" && err.raw.statusCode === 404) {
         debug("Creating Plan with: ", this.data);
-        const data = await this._stripe.plans.create(this.data);
+        const data = await this._stush.stripe.plans.create(this.data);
+        this._cache.put(data.id, new Plan(this._stush, data), this._stush.fetchCacheLifetime());
+        if (!this._cache.keys().includes("all_plans")) {
+          await Plan.fetchAll(this._stush);
+        }
+        else {
+          this.updateAllPlansCache(data);
+        }
         this.set(data, true);
         return Promise.resolve(this);
       }
@@ -61,7 +89,19 @@ export default class Plan {
       return Promise.reject(generateError("Please provide a valid plan ID before self populating"));
     }
     try {
-      this.data = await this._stripe.plans.retrieve(this.data.id);
+      const cacheKeys = this._cache.keys();
+      if (cacheKeys.includes(this.data.id)) {
+        this.data = this._cache.get(this.data.id);
+      }
+      else {
+        this.data = await this._stush.stripe.plans.retrieve(this.data.id);
+        if (!this._cache.keys().includes("all_plans")) {
+          await Plan.fetchAll(this._stush);
+        }
+        else {
+          this.updateAllPlansCache(this.data);
+        }
+      }
       return Promise.resolve(this);
     }
     catch (err) {
@@ -71,7 +111,15 @@ export default class Plan {
 
   async delete () {
     try {
-      this.data = await this._stripe.plans.del(this.data.id);
+      const plan = this.data.id;
+      this.data = await this._stush.stripe.plans.del(plan);
+      this._cache.del(plan);
+      if (!this._cache.keys().includes("all_plans")) {
+        await Plan.fetchAll(this._stush);
+      }
+      else {
+        this.updateAllPlansCache(plan, true);
+      }
       return Promise.resolve(this);
     }
     catch (err) {
@@ -80,7 +128,7 @@ export default class Plan {
   }
 
   toJson () {
-    return JSON.parse(JSON.stringify(_.omit(this, ["_stripe"])));
+    return JSON.parse(JSON.stringify(_.pick(this, ["data"])));
   }
 
   getInterval () {
@@ -89,5 +137,27 @@ export default class Plan {
 
   getPrice () {
     return this.data.amount;
+  }
+
+  static async cacheAllPlans() {
+    try {
+      await Plan.fetchAll(this._stush);
+    }
+    catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
+  updateAllPlansCache(newPlan, deletingPlan = false) {
+    const cache = this._stush.fetchCacheInstance();
+    const plans = cache.get("all_plans");
+    for (let plan of plans) {
+      _.remove(plans, () => {
+        return plan.id === newPlan.id;
+      });
+    }
+    if (!deletingPlan) {
+      plans.push(new Plan(this._stush, newPlan));
+    }
   }
 }

@@ -61,8 +61,9 @@ export default class Invoice {
     if (!_.has(args, "customer")) {
       return Promise.reject(generateError("Please provide a valid customer ID to add a new subscription."));
     }
+    debug("populateWithUpcoming args: ", args);
     if (!_.has(args, "subscription")) {
-      return Promise.reject(generateError("Please provide a valid subscription ID to add a new subscription."));
+      return Promise.reject(generateError("Please provide a valid subscription to fetch upcoming invoice."));
     }
     let params = sanitizePopulateWithUpcoming(args);
     let upcomingInvoice = await this._stush.stripe.invoices.retrieveUpcoming(args.customer, args.subscription, params);

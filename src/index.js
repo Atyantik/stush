@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import _ from "lodash";
+import memCache from "memory-cache";
 import Validator from "validations";
 import Plan from "./plan/plan";
 import Invoice from "./invoice/invoice";
@@ -14,7 +15,9 @@ class Stush {
   userOptions = {
     subscription_model: "multiple",
     proration: "change_subscription",
-    charge_instantly: false
+    charge_instantly: false,
+    cache: new memCache.Cache(),
+    cache_plans: 24*3600
   };
   stripe = {};
 
@@ -35,6 +38,14 @@ class Stush {
 
   chargesInstantly() {
     return _.get(this, "userOptions.charge_instantly");
+  }
+
+  fetchCacheInstance() {
+    return _.get(this, "userOptions.cache");
+  }
+
+  fetchCacheLifetime() {
+    return _.get(this, "userOptions.cache_plans");
   }
 
   async createPlan (args) {
@@ -189,6 +200,18 @@ class Stush {
       }
       await subscription.cancel(input.value.cancel === "after_billing_cycle");
       return Promise.resolve(subscription);
+    }
+    catch (err) {
+      if (_.has(err, "isJoi") && _.get(err, "isJoi")) {
+        return Promise.reject(generateError(err.details));
+      }
+      return Promise.reject(generateError(null, err));
+    }
+  }
+
+  async processHook() {
+    try {
+      //
     }
     catch (err) {
       if (_.has(err, "isJoi") && _.get(err, "isJoi")) {

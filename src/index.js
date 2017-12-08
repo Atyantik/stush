@@ -28,6 +28,10 @@ class Stush {
     this.stripe = new Stripe(_.get(this.userOptions, "secret"));
   }
 
+  fetchWebhookSecret() {
+    return _.get(this, "userOptions.webhook_secret");
+  }
+
   fetchModel() {
     return _.get(this, "userOptions.subscription_model");
   }
@@ -160,31 +164,6 @@ class Stush {
     }
   }
 
-  async previewProration (args) {
-    //
-  }
-
-  async previewCancellationRefund (args) {
-    try {
-      this.validator.previewCancelationRefundInput(args);
-      let customer = new Customer(this, {id: _.get(args, "customer")}),
-        proration_date = _.get(args, "refund_value_from", null),
-        response;
-      await customer.selfPopulate();
-      _.set(args, "preview_cancellation_refund", true);
-      const invoice = await customer.fetchUpcomingInvoice(args);
-      response = invoice.calculateProration(proration_date);
-      _.set(response, "upcoming_invoice", invoice);
-      return Promise.resolve(response);
-    }
-    catch (err) {
-      if (_.has(err, "isJoi") && _.get(err, "isJoi")) {
-        return Promise.reject(generateError(err.details));
-      }
-      return Promise.reject(generateError(null, err));
-    }
-  }
-
   async cancelSubscription (args) {
     try {
       let input = this.validator.cancelSubscriptionInput(args);
@@ -209,55 +188,19 @@ class Stush {
     }
   }
 
-  async processHook() {
+  async verifyHook(body, sig) {
     try {
-      //
+      const secret = this.fetchWebhookSecret();
+      let response = await this.stripe.webhooks.constructEvent(body, sig, secret);
+      return Promise.resolve(response);
     }
     catch (err) {
-      if (_.has(err, "isJoi") && _.get(err, "isJoi")) {
-        return Promise.reject(generateError(err.details));
-      }
       return Promise.reject(generateError(null, err));
     }
   }
-
-  async tinkerZone() {
-    let customer = new Customer(this, {id: "cus_BqPO4KIbVqmiqa"});
-    // let customer = new Customer(this, {id: "cus_BqNdEgmUTacvzP"});
-
-    // const invoice = await customer.fetchAnInvoice({subscription: "sub_BqPY8txbsmULmS"});
-    // debug(invoice); process.exit();
-
-    // const source = await customer.detachSource("card_1BTUwHBunN0EZXFCwfwyRbhi");
-    // debug(source); process.exit();
-
-    // await customer.selfPopulate();
-    // debug(customer.extractAllSubscriptions()); process.exit();
-
-    // const invoices = await customer.fetchAllInvoices();
-    // debug(invoices); process.exit();
-
-    // End Subscription
-    await customer.selfPopulate();
-    // let subscription = await customer.fetchSubscription("sub_BrYmH9SMH7xadN");
-    const sub = await customer.endSubscription({
-      // subscription: subscription.data.id,
-      // cancel: "now",
-      // refund: 1500,
-      // refund_value_from: 1513000695
-    });
-    debug(sub);  process.exit();
-  }
 }
 
-// export Stush;
 export default Stush;
-// export { Customer };
-// export default test = {
-//   Stush,
-//   Customer
-// }
-// module.exports = Stush;
 module.exports = {
   Stush: Stush,
   Plan: Plan,
@@ -265,4 +208,3 @@ module.exports = {
   Customer: Customer,
   Subscription: Subscription
 };
-// exports.Customer = Customer;

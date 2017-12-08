@@ -237,28 +237,7 @@ export default class Customer {
     }
   }
 
-  async changeSubscription (args) {
-    try {
-      await this.selfPopulate();
-      if (this._stush.fetchModel() === "multiple" && !_.has(args, "subscription")) {
-        return Promise.reject({
-          isJoi: true,
-          details: [{
-            message: "Valid subscription is required in Multiple Subscription Model.",
-            code: 500
-          }]
-        });
-      }
-      const subscription = await this.fetchSubscription(_.get(args, "subscription", null));
-      await subscription.change(args);
-      return Promise.resolve(subscription);
-    }
-    catch (err) {
-      return Promise.reject(err);
-    }
-  }
-
-  async newChangeSubscription (toSubscription, fromSubscription = null) {
+  async changeSubscription (toSubscription, fromSubscription = null) {
     try {
       await this.selfPopulate();
       if (this._stush.fetchModel() === "multiple" && !fromSubscription) {

@@ -7,6 +7,5 @@ export default function(stushError = null, stripeError = null) {
       code: 500
     };
   }
-  debug("Throwing error", {stush: stushError, stripe: stripeError});
   return new Error({stush: stushError, stripe: stripeError});
 }

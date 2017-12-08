@@ -61,7 +61,6 @@ export default class Invoice {
     if (!_.has(args, "customer")) {
       return Promise.reject(generateError("Please provide a valid customer ID to add a new subscription."));
     }
-    debug("populateWithUpcoming args: ", args);
     if (!_.has(args, "subscription")) {
       return Promise.reject(generateError("Please provide a valid subscription to fetch upcoming invoice."));
     }

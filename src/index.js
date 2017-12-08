@@ -164,7 +164,30 @@ class Stush {
     }
   }
 
-  async cancelSubscription (args) {
+  async cancelSubscription (subscription = null) {
+    if (!subscription) {
+      throw generateError("Subscription is required for cancellation.");
+    }
+    try {
+      if (typeof subscription === "string") {
+        const subObj = new Subscription(this, {
+          id: subscription
+        });
+        await subObj.selfPopulate();
+        subscription = subObj.clone();
+      }
+      const response = await subscription.cancel();
+      return Promise.resolve(response);
+    }
+    catch (err) {
+      if (_.has(err, "isJoi") && _.get(err, "isJoi")) {
+        return Promise.reject(generateError(err.details));
+      }
+      return Promise.reject(generateError(null, err));
+    }
+  }
+
+  async oldCancelSubscription (args) {
     try {
       let input = this.validator.cancelSubscriptionInput(args);
       if (_.has(args, "customer")) {

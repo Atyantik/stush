@@ -3,7 +3,7 @@
  */
 import _ from "lodash";
 import generateError from "../handler/error";
-import CustomerSchema, { validator as CustomerSchemaValidator, formatCustomerData, previewProrationValidator, changeSubscriptionValidator, cancelSubscriptionValidator } from "./schema";
+import CustomerSchema, { validator as CustomerSchemaValidator, formatCustomerData, cancelSubscriptionValidator } from "./schema";
 import Plan from "../plan/plan";
 import Source from "../source/source";
 import Refund from "../refund/refund";
@@ -35,15 +35,12 @@ export default class Customer {
     try {
       let data = {};
       if (_.has(this.data, "id")) {
-        debug("Updating Customer with: ", this.data);
         let params = CustomerSchemaValidator(this.data);
         data = await this._stush.stripe.customers.update(this.data.id, params.value);
       }
       else {
-        debug("Creating Customer with: ", this.data);
         data = await this._stush.stripe.customers.create(this.data);
       }
-      debug(data);
       this.set(data, true);
       return Promise.resolve(this);
     }
@@ -61,7 +58,8 @@ export default class Customer {
       return Promise.reject(generateError("Please provide a valid customer ID before self populating"));
     }
     try {
-      this.data = await this._stush.stripe.customers.retrieve(this.data.id);
+      const stripeCustomer = await this._stush.stripe.customers.retrieve(this.data.id);
+      _.assignIn(this.data, stripeCustomer);
       return Promise.resolve(this);
     }
     catch (err) {
@@ -190,47 +188,48 @@ export default class Customer {
           }]
         });
       }
-      let response = {}, refundParams = {}, input = cancelSubscriptionValidator(_.get(subscription, "data", {}));
-      const atPeriodEnd = input.value.cancel === "after_billing_cycle";
-      subscription = _.has(input, "value.subscription") ? await this.fetchSubscription(input.value.subscription) : await this.fetchSubscription();
-      // Check input with stush configuration options.
-      const prorationEnabled = this._stush.fetchProrationSetting();
-      if (prorationEnabled && !atPeriodEnd && (_.has(input, "value.refund") || _.has(input, "value.refund_value_from"))) {
-        debug("See this only with proration enabled.");
-        // Fetch last invoice on this subscription for charge ID
-        const invoice = await this.fetchAnInvoice({
-          subscription: subscription.data.id
-        });
-        _.set(refundParams, "charge", _.get(invoice, "data.charge"));
-        if (_.has(input, "value.refund")) {
-          _.set(refundParams, "amount", _.get(input, "value.refund"));
-        }
-        else {
-          let upcomingInvoice = await this.fetchUpcomingInvoice({
-            preview_cancellation_refund: true,
-            customer: _.get(this, "data.id"),
-            subscription: _.get(subscription, "data.id"),
-            refund_value_from: _.get(input, "value.refund_value_from")
-          });
-          debug("Upcoming Invoice: ", upcomingInvoice.toJson());
-          const refundData = upcomingInvoice.calculateProration(_.get(input, "value.refund_value_from"));
-          debug("Refund data: ", refundData);
-          const prorationCost = _.get(refundData, "proration_cost");
-          if (Math.sign(prorationCost) === -1 || Math.sign(prorationCost) === -0) {
-            _.set(refundParams, "amount", Math.abs(prorationCost));
-          }
-        }
+      if (!subscription || !_.has(subscription, "data.id")) {
+        await this.selfPopulate();
+        const stripeSubscription = await this.fetchSubscription();
+        _.assignIn(subscription.data, stripeSubscription.data);
       }
-      debug("Refund params: ", refundParams);
-      debug("Input params: ", input.value);
-      await subscription.cancel(atPeriodEnd);
-      _.set(response, "subscription", subscription.toJson());
-      _.set(response, "refund", null);
-      if (!atPeriodEnd && (_.has(input, "value.refund") || _.has(input, "value.refund_value_from"))) {
-        debug("See this only with refund params.");
-        const refund = await this.refund(refundParams);
-        _.set(response, "refund", refund.toJson());
-      }
+      // let response = {}, refundParams = {}, input = cancelSubscriptionValidator(_.get(subscription, "data", {}));
+      // const atPeriodEnd = input.value.cancel === "after_billing_cycle";
+      // subscription = _.has(input, "value.subscription") ? await this.fetchSubscription(input.value.subscription) : await this.fetchSubscription();
+      // // Check input with stush configuration options.
+      // const prorationEnabled = this._stush.fetchProrationSetting();
+      // if (prorationEnabled && !atPeriodEnd && (_.has(input, "value.refund") || _.has(input, "value.refund_value_from"))) {
+      //   // Fetch last invoice on this subscription for charge ID
+      //   const invoice = await this.fetchAnInvoice({
+      //     subscription: subscription.data.id
+      //   });
+      //   _.set(refundParams, "charge", _.get(invoice, "data.charge"));
+      //   if (_.has(input, "value.refund")) {
+      //     _.set(refundParams, "amount", _.get(input, "value.refund"));
+      //   }
+      //   else {
+      //     let upcomingInvoice = await this.fetchUpcomingInvoice({
+      //       preview_cancellation_refund: true,
+      //       customer: _.get(this, "data.id"),
+      //       subscription: _.get(subscription, "data.id"),
+      //       refund_value_from: _.get(input, "value.refund_value_from")
+      //     });
+      //     const refundData = upcomingInvoice.calculateProration(_.get(input, "value.refund_value_from"));
+      //     const prorationCost = _.get(refundData, "proration_cost");
+      //     if (Math.sign(prorationCost) === -1 || Math.sign(prorationCost) === -0) {
+      //       _.set(refundParams, "amount", Math.abs(prorationCost));
+      //     }
+      //   }
+      // }
+      // await subscription.cancel(atPeriodEnd);
+      // _.set(response, "subscription", subscription.toJson());
+      // _.set(response, "refund", null);
+      // if (!atPeriodEnd && (_.has(input, "value.refund") || _.has(input, "value.refund_value_from"))) {
+      //   const refund = await this.refund(refundParams);
+      //   _.set(response, "refund", refund.toJson());
+      // }
+      // return Promise.resolve(response);
+      const response = await subscription.cancel();
       return Promise.resolve(response);
     }
     catch (err) {
@@ -283,41 +282,6 @@ export default class Customer {
     }
   }
 
-  async backuppreviewProration (args = null) {
-    try {
-      await this.selfPopulate();
-      if (this._stush.fetchModel() === "multiple" && !args) {
-        return Promise.reject({
-          isJoi: true,
-          details: [{
-            message: "Valid subscription is required in Multiple Subscription Model.",
-            code: 500
-          }]
-        });
-      }
-      const subscription = await this.fetchSubscription(_.get(args, "subscription", null));
-      _.set(args, "subscription", subscription);
-      let input = previewProrationValidator(args);
-      const upcomingInvoice = await this.fetchUpcomingInvoice(input.value);
-      // Check if there is a change in billing period.
-      const planToChange = new Plan(this._stush, {
-        id: _.get(input, "value.plan_to_change")
-      });
-      await planToChange.selfPopulate();
-      const newPlan = new Plan(this._stush, {
-        id: _.get(args, "plan")
-      });
-      await newPlan.selfPopulate();
-      const changeInBillingCycle = planToChange.getInterval() !== newPlan.getInterval();
-      const prorationData = upcomingInvoice.calculateProration(_.get(args, "prorate_from"), changeInBillingCycle);
-      _.set(prorationData, "upcoming_invoice", upcomingInvoice);
-      return Promise.resolve(prorationData);
-    }
-    catch (err) {
-      return Promise.reject(err);
-    }
-  }
-
   async previewProration (toSubscription, fromSubscription = null) {
     if (!_.get(toSubscription, "data.cancellation_proration", false) && _.has(toSubscription, "data.id")) {
       throw generateError("Existing subscription cannot be passed to preview plan change proration.");
@@ -364,9 +328,7 @@ export default class Customer {
         _.set(params, "value.preview_proration", true);
       }
       _.unset(params, "value.cancellation_proration");
-      debug("Upcoming invoice params: ", params); //process.exit();
       const upcomingInvoice = await this.fetchUpcomingInvoice(params.value);
-      // debug(upcomingInvoice.data); process.exit();
       // Check if there is a change in billing period.
       const planToChange = new Plan(this._stush, {
         id: _.get(subscriptionItem, "plan.id")
@@ -378,7 +340,6 @@ export default class Customer {
       await newPlan.selfPopulate();
       const changeInBillingCycle = planToChange.getInterval() !== newPlan.getInterval();
       const prorationData = upcomingInvoice.calculateProration(_.get(params, "value.prorate_from"), changeInBillingCycle);
-      debug(prorationData); process.exit();
       _.set(prorationData, "upcoming_invoice", upcomingInvoice);
       return Promise.resolve(prorationData);
     }
@@ -447,7 +408,6 @@ export default class Customer {
           _.set(params, "subscription", _.get(args, "subscription.data.id"));
         }
       }
-      // debug(params); process.exit();
       await invoice.populateWithUpcoming(params);
       return Promise.resolve(invoice);
     }

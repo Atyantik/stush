@@ -45,15 +45,12 @@ export default class Plan {
   set (data, allowImmutable = false) {
     let updatedData = _.cloneDeep(this.data);
     _.assignIn(updatedData, data);
-    debug("before: ", updatedData);
     updatedData = formatPlanData(updatedData);
-    debug("after: ", updatedData);
     this.data = updatedData;
   }
 
   async save () {
     try {
-      debug("Updating Plan with: ", this.data);
       let params = PlanSchemaValidator(this.data);
       const data = await this._stush.stripe.plans.update(this.data.id, params.value);
       this._cache.put(data.id, new Plan(this._stush, data), this._stush.fetchCacheLifetime());
@@ -68,7 +65,6 @@ export default class Plan {
     }
     catch (err) {
       if (_.has(err, "raw") && err.raw.param === "plan" && err.raw.statusCode === 404) {
-        debug("Creating Plan with: ", this.data);
         const data = await this._stush.stripe.plans.create(this.data);
         this._cache.put(data.id, new Plan(this._stush, data), this._stush.fetchCacheLifetime());
         if (!this._cache.keys().includes("all_plans")) {

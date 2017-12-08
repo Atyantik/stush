@@ -7,7 +7,7 @@ import generateError from "./handler/error";
 
 const stushOptionsSchema = Joi.object().keys({
   secret: Joi.string().token().required(),
-  webhook_secret: Joi.string().token().required(),
+  webhook_secret: Joi.string().token(),
   subscription_model: Joi.string().valid("single", "multiple"),
   proration: Joi.string().valid("all", "none", "change_subscription", "cancel_subscription"),
   charge_instantly: Joi.boolean()

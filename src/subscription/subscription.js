@@ -19,6 +19,26 @@ export default class Subscription {
   }
 
   /**
+   * Fetches all subscriptions.
+   * @param stushInstance
+   * @param args
+   * @returns {Promise.<*>}
+   */
+  static async fetchAll (stushInstance, args = {}) {
+    try {
+      const subscriptions = await stushInstance.stripe.subscriptions.list(args);
+      let set = [];
+      for (let subscription of subscriptions.data) {
+        set.push(new Invoice(stushInstance, subscription));
+      }
+      return Promise.resolve(set);
+    }
+    catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
+  /**
    * Setter method for data(Also formats and validates data being set).
    * @param data
    * @param allowImmutable

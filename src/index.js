@@ -28,30 +28,53 @@ class Stush {
     this.stripe = new Stripe(_.get(this.userOptions, "secret"));
   }
 
+  /**
+   * Fetches webhook secret key for the Stush instance.
+   */
   fetchWebhookSecret() {
     return _.get(this, "userOptions.webhook_secret", null);
   }
 
+  /**
+   * Fetches subscription model type for the Stush instance.
+   */
   fetchModel() {
     return _.get(this, "userOptions.subscription_model");
   }
 
+  /**
+   * Fetches proration setting for the Stush instance.
+   */
   fetchProrationSetting() {
     return _.get(this, "userOptions.proration");
   }
 
+  /**
+   * Fetches "charge_instantly" setting for the Stush instance.
+   */
   chargesInstantly() {
     return _.get(this, "userOptions.charge_instantly");
   }
 
+  /**
+   * Fetches cache instance for the Stush instance.
+   */
   fetchCacheInstance() {
     return _.get(this, "userOptions.cache");
   }
 
+  /**
+   * Fetches cache lifetime setting for the Stush instance.
+   */
   fetchCacheLifetime() {
     return _.get(this, "userOptions.cache_plans");
   }
 
+  /**
+   * Creates a new plan.
+   * @param args
+   * @returns {Promise.<*>}
+   */
   async createPlan (args) {
     try {
       let input = this.validator.createPlanInput(args);
@@ -67,6 +90,11 @@ class Stush {
     }
   }
 
+  /**
+   * Deletes a plan.
+   * @param planId
+   * @returns {Promise.<*>}
+   */
   async deletePlan (planId) {
     try {
       let plan = new Plan(this, {id: planId});
@@ -81,6 +109,11 @@ class Stush {
     }
   }
 
+  /**
+   * Fetches all plans.
+   * @param args
+   * @returns {Promise.<*>}
+   */
   async fetchAllPlans (args) {
     try {
       const plans = await Plan.fetchAll(this, args);
@@ -94,6 +127,11 @@ class Stush {
     }
   }
 
+  /**
+   * Creates a new customer.
+   * @param customerData
+   * @returns {Promise.<*>}
+   */
   async createCustomer (customerData) {
     try {
       let customer = new Customer(this, customerData);
@@ -108,6 +146,11 @@ class Stush {
     }
   }
 
+  /**
+   * Fetches a customer.
+   * @param customerId
+   * @returns {Promise.<*>}
+   */
   async getCustomer (customerId) {
     try {
       let customer = new Customer(this, {id: customerId});
@@ -119,6 +162,27 @@ class Stush {
     }
   }
 
+  /**
+   * Deletes a customer.
+   * @param customerId
+   * @returns {Promise.<*>}
+   */
+  async deleteCustomer (customerId) {
+    try {
+      const customer = new Customer(this, {id: customerId});
+      await customer.delete();
+      return Promise.resolve(customer);
+    }
+    catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
+  /**
+   * Creates a new subscription (and customer, based on the arguments).
+   * @param args
+   * @returns {Promise.<*>}
+   */
   async createSubscription (args) {
     let input = this.validator.createSubscriptionInput(args);
     // debug("Vanguard validation: ", input.value);process.exit();
@@ -164,6 +228,12 @@ class Stush {
     }
   }
 
+  /**
+   * Changes a susbcription (upgrades or downgrades).
+   * @param toSubscription
+   * @param fromSubscription
+   * @returns {Promise.<*>}
+   */
   async changeSubscription(toSubscription, fromSubscription) {
     if (!fromSubscription) {
       throw generateError("Subscription to change is required.");
@@ -185,6 +255,11 @@ class Stush {
     }
   }
 
+  /**
+   * Cancels a subscription.
+   * @param subscription
+   * @returns {Promise.<*>}
+   */
   async cancelSubscription (subscription = null) {
     if (!subscription) {
       throw generateError("Subscription is required for cancellation.");
@@ -208,6 +283,12 @@ class Stush {
     }
   }
 
+  /**
+   * Verifies webhook from Stripe.
+   * @param body
+   * @param sig
+   * @returns {Promise.<*>}
+   */
   async verifyHook(body, sig) {
     try {
       const secret = this.fetchWebhookSecret();

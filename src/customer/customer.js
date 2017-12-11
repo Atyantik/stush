@@ -20,6 +20,26 @@ export default class Customer {
   }
 
   /**
+   * Fetches all customers.
+   * @param stushInstance
+   * @param args
+   * @returns {Promise.<*>}
+   */
+  static async fetchAll (stushInstance, args = {}) {
+    try {
+      const customers = await stushInstance.stripe.customers.list(args);
+      let set = [];
+      for (let customer of customers.data) {
+        set.push(new Customer(stushInstance, customer));
+      }
+      return Promise.resolve(set);
+    }
+    catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
+  /**
    * Setter method for data(Also formats and validates data being set).
    * @param data
    * @param allowImmutable
@@ -54,6 +74,23 @@ export default class Customer {
         data = await this._stush.stripe.customers.create(this.data);
       }
       this.set(data, true);
+      return Promise.resolve(this);
+    }
+    catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
+  /**
+   * Deletes the customer.
+   * @returns {Promise.<*>}
+   */
+  async delete() {
+    if (!this.data.id) {
+      throw generateError("Valid customer ID is required to delete the customer");
+    }
+    try {
+      this.data = await this._stush.stripe.customers.del(this.data.id);
       return Promise.resolve(this);
     }
     catch (err) {

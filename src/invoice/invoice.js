@@ -14,12 +14,18 @@ export default class Invoice {
     this.set(data, true);
   }
 
+  /**
+   * Fetches all invoices.
+   * @param stushInstance
+   * @param args
+   * @returns {Promise.<*>}
+   */
   static async fetchAll (stushInstance, args = {}) {
     try {
       const invoices = await stushInstance.stripe.invoices.list(args);
-      let set = new Set();
+      let set = [];
       for (let invoice of invoices.data) {
-        set.add(new Invoice(stushInstance, invoice));
+        set.push(new Invoice(stushInstance, invoice));
       }
       return Promise.resolve(set);
     }
@@ -28,6 +34,11 @@ export default class Invoice {
     }
   }
 
+  /**
+   * Setter method for data(Also formats and validates data being set).
+   * @param data
+   * @param allowImmutable
+   */
   set(data, allowImmutable = false) {
     let updatedData = _.cloneDeep(this.data);
     _.assignIn(updatedData, data);
@@ -35,6 +46,10 @@ export default class Invoice {
     this.data = updatedData;
   }
 
+  /**
+   * Creates a new Stripe invoice.
+   * @returns {Promise.<*>}
+   */
   async save () {
     try {
       let data;
@@ -53,10 +68,18 @@ export default class Invoice {
     }
   }
 
+  /**
+   * Returns data in JSON format.
+   */
   toJson() {
     return JSON.parse(JSON.stringify(_.pick(this, ["data"])));
   }
 
+  /**
+   * Populates the local invoice instance from Stripe with upcoming invoice.
+   * @param args
+   * @returns {Promise.<*>}
+   */
   async populateWithUpcoming(args) {
     if (!_.has(args, "customer")) {
       return Promise.reject(generateError("Please provide a valid customer ID to add a new subscription."));
@@ -69,6 +92,12 @@ export default class Invoice {
     this.set(upcomingInvoice, true);
   }
 
+  /**
+   * Calculates and provides proration details.
+   * @param proration_date
+   * @param changeInBillingCycle
+   * @returns {Promise.<{proration_cost: number, proration_items: Array}>}
+   */
   calculateProration(proration_date, changeInBillingCycle = false) {
     let currentProrations = [];
     let cost = 0, invoiceItem = {};
@@ -84,9 +113,9 @@ export default class Invoice {
         }
       }
     }
-    return {
+    return Promise.resolve({
       proration_cost: cost,
       proration_items: currentProrations
-    };
+    });
   }
 }

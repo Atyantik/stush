@@ -39,7 +39,9 @@ export const validator = (input, allowImmutable = false) => {
 };
 
 export const formatPlanData = (input) => {
-  _.set(input, "amount", _.get(input, "price"));
+  if (_.get(input, "price", null)) {
+    _.set(input, "amount", _.get(input, "price"));
+  }
   if (_.has(input, "bill_every")) {
     // Formatting interval input for stripe.
     const daily = ["day", "days", "daily", "everyday", "day-to-day"],

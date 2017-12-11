@@ -6,10 +6,10 @@ import generateError from "../handler/error";
 
 export default class Source {
   data = {};
-  _stripe = {};
+  _stush = {};
 
   constructor (stushInstance, data) {
-    this._stripe = stushInstance.stripe;
+    this._stush = stushInstance;
     this.set(data);
   }
 
@@ -25,7 +25,7 @@ export default class Source {
   //     throw generateError("Please provide a valid Source ID before self populating.");
   //   }
   //   try {
-  //     const thisSource = this._stripe.sources.retrieve(this.data.id);
+  //     const thisSource = this._stush.stripe.sources.retrieve(this.data.id);
   //     debug(thisSource);
   //   }
   //   catch (err) {

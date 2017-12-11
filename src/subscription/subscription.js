@@ -2,7 +2,7 @@
  * Created by ravindra on 22/11/17.
  */
 import _ from "lodash";
-import SubscriptionSchema, {validator as SubscriptionSchemaValidator, formatSubscriptionData, stripConfigOptions, formatChangeSubscriptionInput, changeSubscriptionValidator} from "./schema";
+import SubscriptionSchema, {validator as SubscriptionSchemaValidator, formatSubscriptionData, stripConfigOptions} from "./schema";
 import CustomerSchema, { cancelSubscriptionValidator } from "../customer/schema";
 import generateError from "../handler/error";
 import Plan from "../plan/plan";
@@ -18,6 +18,11 @@ export default class Subscription {
     this.set(subscriptionData);
   }
 
+  /**
+   * Setter method for data(Also formats and validates data being set).
+   * @param data
+   * @param allowImmutable
+   */
   set(data, allowImmutable = false) {
     let updatedData = _.cloneDeep(this.data);
     _.assignIn(updatedData, data);
@@ -26,6 +31,10 @@ export default class Subscription {
     this.data = updatedData;
   }
 
+  /**
+   * Creates a new subscription if ID not present; otherwise, updates the subscription.
+   * @returns {Promise.<*>}
+   */
   async save() {
     try {
       let data = {};
@@ -45,9 +54,13 @@ export default class Subscription {
     }
   }
 
+  /**
+   * Populates the local subscription from Stripe.
+   * @returns {Promise.<*>}
+   */
   async selfPopulate() {
     if (!this.data.id) {
-      return Promise.reject(generateError("Please provide a valid subscription ID before self populating"));
+      return Promise.reject(generateError("Please provide a valid subscription ID before self populating."));
     }
     try {
       const stripeSubscription = await this._stush.stripe.subscriptions.retrieve(this.data.id);
@@ -59,14 +72,26 @@ export default class Subscription {
     }
   }
 
+  /**
+   * Creates a clone of the subscription instance.
+   * @returns {Subscription}
+   */
   clone() {
     return new Subscription(this._stush, _.cloneDeep(this.data));
   }
 
+  /**
+   * Returns data in JSON format.
+   */
   toJson() {
     return JSON.parse(JSON.stringify(_.pick(this, ["data"])));
   }
 
+  /**
+   * Fetches a subscription item.
+   * @param planId
+   * @returns {*}
+   */
   fetchSubscriptionItem(planId = null) {
     const subscriptionItems = _.get(this.data, "items.data");
     let requiredSubscriptionItem;
@@ -87,6 +112,10 @@ export default class Subscription {
     return requiredSubscriptionItem;
   }
 
+  /**
+   * Fetches the latest subscribed or modified plan.
+   * @returns {Promise.<T>}
+   */
   fetchLatestPlan() {
     const subscriptionItems = _.get(this.data, "items.data");
     for (let value of subscriptionItems) {
@@ -96,6 +125,11 @@ export default class Subscription {
     }
   }
 
+  /**
+   * Changes the subscription(upgrades or downgrades).
+   * @param subscription
+   * @returns {Promise.<*>}
+   */
   async change(subscription) {
     if (!subscription) {
       throw generateError("Subscription to change to is required.");
@@ -138,6 +172,7 @@ export default class Subscription {
       this.data = await this._stush.stripe.subscriptions.update(this.data.id, params);
       if (!changeInBillingCycle && !freeToPaid && upgradingPlan && chargeInstantly) {
         // Create an invoice to initiate payment collection instantly.
+        debug("Generating a new invoice.");
         let invoice = new Invoice(this._stush, {
           customer: _.get(this, "data.customer"),
           subscription: _.get(this, "data.id")
@@ -151,12 +186,18 @@ export default class Subscription {
     }
   }
 
+  /**
+   * Cancels the subscription.
+   * @returns {Promise.<*>}
+   */
   async cancel() {
     if (!_.has(this, "data.id")) {
       throw generateError("Please populate the Subscription instance before attempting to cancel it.");
     }
     try {
-      let response = {}, refundParams = {}, input = cancelSubscriptionValidator(_.get(this, "data", {}));
+      let response = {},
+        refundParams = {},
+        input = cancelSubscriptionValidator(_.get(this, "data", {}));
       const atPeriodEnd = input.value.cancel === "after_billing_cycle";
       if (!_.has(this, "data.customer")) {
         await this.selfPopulate();
@@ -204,20 +245,6 @@ export default class Subscription {
         _.set(response, "refund", refund.toJson());
       }
       return Promise.resolve(response);
-    }
-    catch (err) {
-      return Promise.reject(err);
-    }
-  }
-
-  async oldCancel(atPeriodEnd = false) {
-    try {
-      let params = {};
-      if (atPeriodEnd) {
-        _.set(params, "at_period_end", true);
-      }
-      this.data = await this._stush.stripe.subscriptions.del(this.data.id, params);
-      return Promise.resolve(this);
     }
     catch (err) {
       return Promise.reject(err);

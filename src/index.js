@@ -29,7 +29,7 @@ class Stush {
   }
 
   fetchWebhookSecret() {
-    return _.get(this, "userOptions.webhook_secret");
+    return _.get(this, "userOptions.webhook_secret", null);
   }
 
   fetchModel() {
@@ -60,7 +60,7 @@ class Stush {
       return Promise.resolve(plan);
     }
     catch (err) {
-      if (_.has(err, "isJoi") && _.get(err, "isJoi")) {
+      if (_.get(err, "isJoi", null)) {
         return Promise.reject(generateError(err.details));
       }
       return Promise.reject(generateError(null, err));
@@ -74,7 +74,7 @@ class Stush {
       return Promise.resolve(plan);
     }
     catch (err) {
-      if (_.has(err, "isJoi") && _.get(err, "isJoi")) {
+      if (_.get(err, "isJoi", null)) {
         return Promise.reject(generateError(err.details));
       }
       return Promise.reject(generateError(null, err));
@@ -87,7 +87,7 @@ class Stush {
       return Promise.resolve(plans);
     }
     catch (err) {
-      if (_.has(err, "isJoi") && _.get(err, "isJoi")) {
+      if (_.get(err, "isJoi", null)) {
         return Promise.reject(generateError(err.details));
       }
       return Promise.reject(generateError(null, err));
@@ -101,7 +101,7 @@ class Stush {
       return Promise.resolve(customer);
     }
     catch (err) {
-      if (_.has(err, "isJoi") && _.get(err, "isJoi")) {
+      if (_.get(err, "isJoi", null)) {
         return Promise.reject(generateError(err.details));
       }
       return Promise.reject(generateError(null, err));
@@ -153,7 +153,7 @@ class Stush {
         return Promise.resolve(resolved);
       }
       catch (err) {
-        if (_.has(err, "isJoi") && _.get(err, "isJoi")) {
+        if (_.get(err, "isJoi", null)) {
           return Promise.reject(generateError(err.details));
         }
         return Promise.reject(generateError(null, err));
@@ -161,6 +161,27 @@ class Stush {
     }
     else {
       return Promise.reject(generateError(input.error.details));
+    }
+  }
+
+  async changeSubscription(toSubscription, fromSubscription) {
+    if (!fromSubscription) {
+      throw generateError("Subscription to change is required.");
+    }
+    try {
+      if (!_.get(fromSubscription, "data.object", null)) {
+        debug(fromSubscription); process.exit();
+        await fromSubscription.selfPopulate();
+      }
+      const subscription = fromSubscription.clone();
+      await subscription.change(toSubscription);
+      return Promise.resolve(subscription);
+    }
+    catch (err) {
+      if (_.get(err, "isJoi", null)) {
+        return Promise.reject(generateError(err.details));
+      }
+      return Promise.reject(generateError(null, err));
     }
   }
 
@@ -180,31 +201,7 @@ class Stush {
       return Promise.resolve(response);
     }
     catch (err) {
-      if (_.has(err, "isJoi") && _.get(err, "isJoi")) {
-        return Promise.reject(generateError(err.details));
-      }
-      return Promise.reject(generateError(null, err));
-    }
-  }
-
-  async oldCancelSubscription (args) {
-    try {
-      let input = this.validator.cancelSubscriptionInput(args);
-      if (_.has(args, "customer")) {
-        if (this.fetchModel() === "single") {
-          //
-        }
-      }
-      let subscription = new Subscription(this, {id: _.get(input, "value.subscription")});
-      if (_.has(input, "value.refund") || _.has(input, "value.refund_value_from")) {
-        // await subscription.selfPopulate();  // Need this in case of proration
-        //
-      }
-      await subscription.cancel(input.value.cancel === "after_billing_cycle");
-      return Promise.resolve(subscription);
-    }
-    catch (err) {
-      if (_.has(err, "isJoi") && _.get(err, "isJoi")) {
+      if (_.get(err, "isJoi", null)) {
         return Promise.reject(generateError(err.details));
       }
       return Promise.reject(generateError(null, err));

@@ -5,10 +5,10 @@ import _ from "lodash";
 
 export default class Refund {
   data = {};
-  _stripe = {};
+  _stush = {};
 
   constructor (stushInstance, data = {}) {
-    this._stripe = stushInstance.stripe;
+    this._stush = stushInstance;
     this.set(data);
   }
 

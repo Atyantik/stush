@@ -4,7 +4,7 @@ if (!global._babelPolyfill) {
 import Stripe from "stripe";
 import _ from "lodash";
 import memCache from "memory-cache";
-import QueueProcessor from "./queue/processor";
+import Memcached from "memcached";
 import Validator from "validations";
 import Plan from "./plan/plan";
 import Coupon from "./coupon/coupon";
@@ -22,6 +22,7 @@ class Stush {
     proration: "change_subscription",
     charge_instantly: false,
     cache: new memCache.Cache(),
+    queue: new Memcached("127.0.0.1:11211"),        // Global queue.
     cache_plans: 24*3600
   };
   stripe = {};
@@ -319,8 +320,6 @@ class Stush {
     try {
       const secret = this.fetchWebhookSecret();
       let response = await this.stripe.webhooks.constructEvent(body, sig, secret);
-      this.queueProcessor = new QueueProcessor(_.get(response, "type", ""));
-      this.queueProcessor.addJob(response);
       return Promise.resolve(response);
     }
     catch (err) {
@@ -329,7 +328,7 @@ class Stush {
   }
 }
 
-export default Stush;
+// export default Stush;
 module.exports = {
   Stush: Stush,
   Plan: Plan,

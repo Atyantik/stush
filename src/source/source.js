@@ -16,20 +16,13 @@ export default class Source {
   set (data) {
     let updatedData = _.cloneDeep(this.data);
     _.assignIn(updatedData, data);
-    // TODO: Validate data here
     this.data = updatedData;
   }
 
-  // async selfPopulate () {
-  //   if (!this.data.id) {
-  //     throw generateError("Please provide a valid Source ID before self populating.");
-  //   }
-  //   try {
-  //     const thisSource = this._stush.stripe.sources.retrieve(this.data.id);
-  //     debug(thisSource);
-  //   }
-  //   catch (err) {
-  //     return Promise.reject(err);
-  //   }
-  // }
+  /**
+   * Returns data in JSON format.
+   */
+  toJson () {
+    return JSON.parse(JSON.stringify(_.get(this, "data")));
+  }
 }

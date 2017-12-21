@@ -4,7 +4,6 @@ import MinifyPlugin from "babel-minify-webpack-plugin";
 
 // Track current mode of execution development/production
 const __development = process.env.NODE_ENV === "development";
-console.log(__development);
 
 const libraryName = "stush";
 const outputFile = `${libraryName}.js`;
@@ -12,7 +11,7 @@ const outputFile = `${libraryName}.js`;
 export default {
   target: "node",
   entry: [
-    "babel-polyfill",
+    // "babel-polyfill",
     `${__dirname}/src/index.js`
   ],
   devtool: __development ? "source-map": "",

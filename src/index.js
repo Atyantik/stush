@@ -1,8 +1,13 @@
+if (!global._babelPolyfill) {
+  require("babel-polyfill");
+}
 import Stripe from "stripe";
 import _ from "lodash";
 import memCache from "memory-cache";
+import QueueProcessor from "./queue/processor";
 import Validator from "validations";
 import Plan from "./plan/plan";
+import Coupon from "./coupon/coupon";
 import Invoice from "./invoice/invoice";
 import Customer from "./customer/customer";
 import Subscription from "./subscription/subscription";
@@ -283,6 +288,27 @@ class Stush {
     }
   }
 
+  async validateCoupon(couponCode) {
+    try {
+      const coupons = Coupon.fetchAll(this);
+      for (let value of coupons) {
+        if (couponCode === _.get(value, "data.id")) {
+          return Promise.resolve(value);
+        }
+      }
+      return Promise.reject({
+        isJoi: true,
+        details: {
+          message: "Invalid coupon code!",
+          code: 404
+        }
+      });
+    }
+    catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
   /**
    * Verifies webhook from Stripe.
    * @param body
@@ -293,6 +319,8 @@ class Stush {
     try {
       const secret = this.fetchWebhookSecret();
       let response = await this.stripe.webhooks.constructEvent(body, sig, secret);
+      this.queueProcessor = new QueueProcessor(_.get(response, "type", ""));
+      this.queueProcessor.addJob(response);
       return Promise.resolve(response);
     }
     catch (err) {
@@ -305,6 +333,7 @@ export default Stush;
 module.exports = {
   Stush: Stush,
   Plan: Plan,
+  Coupon: Coupon,
   Invoice: Invoice,
   Customer: Customer,
   Subscription: Subscription

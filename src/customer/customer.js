@@ -116,6 +116,24 @@ export default class Customer {
     }
   }
 
+  async fetchAllSources(args = {}) {
+    if (!this.data.id){
+      throw generateError("Please provide a valid customer ID to add a new subscription.");
+    }
+    try {
+      const sources = await this._stush.stripe.customers.listSources(this.data.id, args);
+      // Creating an array of Source instances.
+      let sourcesArray = [];
+      for (let source of sources.data) {
+        sourcesArray.push(new Source(this._stush, source));
+      }
+      return Promise.resolve(sourcesArray);
+    }
+    catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
   /**
    * Adds a source to customer.
    * @param sourceId
@@ -129,6 +147,41 @@ export default class Customer {
       return Promise.resolve(new Source(this._stush, source));
     }
     catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
+  async updateSource (sourceId, params = {}) {
+    try {
+      const sourceParams = {
+        metadata: _.omit(params, ["owner"])
+      };
+      if (_.has(params, "owner")) {
+        _.set(sourceParams, "owner", _.get(params, "owner", ""));
+      }
+      const source = await this._stush.stripe.sources.update(sourceId, sourceParams);
+      return Promise.resolve(new Source(this._stush, source));
+    }
+    catch (err) {
+      if (_.has(err, "raw") && _.startsWith(err.raw.message, "No such source")) {
+        const sourceExcludes = [
+          "address_city",
+          "address_country",
+          "address_line1",
+          "address_line2",
+          "address_state",
+          "address_zip",
+          "exp_month",
+          "exp_year",
+          "name"
+        ];
+        const sourceParams = {
+          metadata: _.omit(params, sourceExcludes)
+        };
+        _.assignIn(sourceParams, _.pick(params, sourceExcludes));
+        const source = await this._stush.stripe.customers.updateCard(this.data.id, sourceId, sourceParams);
+        return Promise.resolve(new Source(this._stush, source));
+      }
       return Promise.reject(err);
     }
   }
@@ -256,6 +309,7 @@ export default class Customer {
       let subscription = subscriptionObj.clone();
       _.set(subscription, "data.customer", this.data.id);
       await subscription.save();
+      await this.selfPopulate();
       return Promise.resolve(subscription);
     }
     catch (err) {
@@ -375,6 +429,7 @@ export default class Customer {
       }
       _.unset(params, "value.cancellation_proration");
       const upcomingInvoice = await this.fetchUpcomingInvoice(params.value);
+
       // Check if there is a change in billing period.
       const planToChange = new Plan(this._stush, {
         id: _.get(subscriptionItem, "plan.id")
@@ -384,9 +439,10 @@ export default class Customer {
         id: _.get(params, "value.items[0].plan")
       });
       await newPlan.selfPopulate();
-      const changeInBillingCycle = planToChange.getInterval() !== newPlan.getInterval();
-      const prorationData = upcomingInvoice.calculateProration(_.get(params, "value.prorate_from"), changeInBillingCycle);
-      _.set(prorationData, "upcoming_invoice", upcomingInvoice);
+      const changeInBillingCycle = planToChange.getInterval() !== newPlan.getInterval() ||
+        (_.get(planToChange, "data.amount") === 0 && _.get(newPlan, "data.amount") !== 0);
+      let prorationData = await upcomingInvoice.calculateProration(_.get(params, "value.prorate_from"), changeInBillingCycle);
+      _.set(prorationData, "upcoming_invoice", upcomingInvoice.toJson());
       return Promise.resolve(prorationData);
     }
     catch (err) {

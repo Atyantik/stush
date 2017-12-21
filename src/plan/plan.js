@@ -151,7 +151,7 @@ export default class Plan {
    * Returns data in JSON format.
    */
   toJson () {
-    return JSON.parse(JSON.stringify(_.pick(this, ["data"])));
+    return JSON.parse(JSON.stringify(_.get(this, "data")));
   }
 
   /**

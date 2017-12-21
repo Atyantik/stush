@@ -41,7 +41,7 @@ const configOptionKeys = [
   "prorate_from",
   "cancel",
   "refund",
-  "refund_value_from"
+  "refund_value_from",
 ];
 
 const schema = Joi.object().keys({
@@ -50,7 +50,7 @@ const schema = Joi.object().keys({
   application_fee_percent: Joi.number().positive().precision(2).allow(null),
   billing: Joi.string().valid("charge_automatically", "send_invoice").default("charge_automatically"),
   coupon: Joi.string(),
-  days_until_due: Joi.when("billing", {is: "send_invoice", then: Joi.number().min(1).required(), otherwise: Joi.number().strip()}),
+  days_until_due: Joi.number().when("billing", {is: "send_invoice", then: Joi.number().min(1).required()}).allow(null),
   items: Joi.alternatives([Joi.array().items(Joi.object().keys({
     id: Joi.string().token(),
     deleted: Joi.boolean(),
@@ -78,6 +78,9 @@ export const validator = (input, allowImmutable = false) => {
   let output = Joi.validate(input, schema, {allowUnknown: true});
   if (output.error) {
     throw output.error;
+  }
+  if (_.get(output, "value.billing", false) !== "send_invoice") {
+    _.unset(output, "value.days_until_due");
   }
   if (!allowImmutable) {
     let mutableFields = [

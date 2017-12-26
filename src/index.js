@@ -28,7 +28,9 @@ class Stush {
     cache_plans: 24*3600
   };
   stripe = {};
-  _queue = new BetterQueue(new Worker(), {
+  _queue = new BetterQueue((task, cb) => {
+    Worker.process(task, cb);
+  }, {
     concurrent: _.get(this, "userOptions.worker_instances", 1)
   });
   _emitter = new EventEmitter();
@@ -320,8 +322,8 @@ class Stush {
     try {
       await this._validateRawBody(rawBody);
       const stripeEvent = await this._verifyHook(rawBody, stripeSignature);
-      this.addToQueue(stripeEvent);
-      return Promise.resolve();
+      await this.addToQueue(stripeEvent);
+      return Promise.resolve(stripeEvent);
     }
     catch (err) {
       return Promise.reject(err);
@@ -353,7 +355,10 @@ class Stush {
 
   async on(event, callback) {
     try {
-      this._emitter.on(event, callback);
+      this._emitter.on(event, () => {
+        setImmediate(callback);
+      });
+      this._emitter.listeners(event);
     }
     catch (err) {
       return Promise.reject(err);

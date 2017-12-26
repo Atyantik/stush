@@ -38,6 +38,7 @@
     "babel-plugin-transform-object-rest-spread": "^6.26.0",
     "babel-polyfill": "^6.26.0",
     "babel-preset-env": "^1.6.1",
+    "better-queue": "^3.8.6",
     "cross-env": "^5.1.1",
     "eslint": "^4.11.0",
     "joi": "^13.0.2",

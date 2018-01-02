@@ -1,7 +1,6 @@
 import webpack from "webpack";
 import path from "path";
 import MinifyPlugin from "babel-minify-webpack-plugin";
-import nodeExternals from "webpack-node-externals";
 
 // Track current mode of execution development/production
 const __development = process.env.NODE_ENV === "development";
@@ -11,7 +10,6 @@ const outputFile = `${libraryName}.js`;
 
 export default {
   target: "node",
-  externals: [nodeExternals()],
   entry: [
     "babel-polyfill",
     `${__dirname}/src/index.js`

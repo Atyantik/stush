@@ -11,7 +11,6 @@ const outputFile = `${libraryName}.js`;
 export default {
   target: "node",
   entry: [
-    // "babel-polyfill",
     `${__dirname}/src/index.js`
   ],
   devtool: __development ? "source-map": "",

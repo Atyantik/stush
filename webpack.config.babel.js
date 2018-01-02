@@ -36,6 +36,20 @@ export default {
       path.resolve("./src")
     ],
   },
+  externals: {
+    lodash: {
+      commonjs: "lodash",
+      commonjs2: "lodash",
+      amd: "lodash",
+      root: "_"
+    },
+    "better-queue": {
+      commonjs: "better-queue",
+      commonjs2: "better-queue",
+      amd: "better-queue",
+      root: "better-queue"
+    }
+  },
   plugins: [
     ...(__development ? []: [
       new MinifyPlugin()

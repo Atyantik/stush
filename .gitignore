@@ -60,3 +60,4 @@ typings/
 # WebStorm configurations
 .idea
 lib
+package-lock.json

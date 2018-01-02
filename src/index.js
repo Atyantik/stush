@@ -4,7 +4,6 @@ if (!global._babelPolyfill) {
 import Stripe from "stripe";
 import _ from "lodash";
 import memCache from "memory-cache";
-import Memcached from "memcached";
 import Validator from "validations";
 import Plan from "./plan/plan";
 import Coupon from "./coupon/coupon";
@@ -13,6 +12,9 @@ import Customer from "./customer/customer";
 import Subscription from "./subscription/subscription";
 import generateError from "./handler/error";
 import { makeUtilsGlobal } from "./utils";
+import BetterQueue from "better-queue";
+import Worker from "./hook/worker";
+import EventEmitter from "events";
 
 makeUtilsGlobal();
 
@@ -21,11 +23,17 @@ class Stush {
     subscription_model: "multiple",
     proration: "change_subscription",
     charge_instantly: false,
+    worker_instances: 1,
     cache: new memCache.Cache(),
-    queue: new Memcached("127.0.0.1:11211"),        // Global queue.
     cache_plans: 24*3600
   };
   stripe = {};
+  _queue = new BetterQueue((task, cb) => {
+    Worker.process(task, cb);
+  }, {
+    concurrent: _.get(this, "userOptions.worker_instances", 1)
+  });
+  _emitter = new EventEmitter();
 
   constructor (options) {
     this.validator = new Validator();
@@ -310,13 +318,60 @@ class Stush {
     }
   }
 
+  async processHook(rawBody, stripeSignature) {
+    try {
+      await this._validateRawBody(rawBody);
+      const stripeEvent = await this._verifyHook(rawBody, stripeSignature);
+      await this.addToQueue(stripeEvent);
+      return Promise.resolve(stripeEvent);
+    }
+    catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
+  async _validateRawBody(body) {
+    try {
+      const validJson = JSON.parse(body);
+      return Promise.resolve(validJson);
+    }
+    catch (err) {
+      return err;
+    }
+  }
+
+  async addToQueue(stripeEvent) {
+    try {
+      const params = {
+        stushInstance: this,
+        stripeEvent: stripeEvent
+      };
+      this._queue.push(params);
+    }
+    catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
+  async on(event, callback) {
+    try {
+      this._emitter.on(event, () => {
+        setImmediate(callback);
+      });
+      this._emitter.listeners(event);
+    }
+    catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
   /**
    * Verifies webhook from Stripe.
    * @param body
    * @param sig
    * @returns {Promise.<*>}
    */
-  async verifyHook(body, sig) {
+  async _verifyHook(body, sig) {
     try {
       const secret = this.fetchWebhookSecret();
       let response = await this.stripe.webhooks.constructEvent(body, sig, secret);

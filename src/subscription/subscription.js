@@ -162,11 +162,21 @@ export default class Subscription {
         subscriptionItem = this.fetchSubscriptionItem();
       _.set(params, "items", _.get(subscription, "data.items"));
       _.set(params, "items[0].id", _.get(subscriptionItem, "id"));
+      debug("TO BE UPDATED SUB >>>>>>>>>>> ", subscription);
       if (_.has(subscription, "data.tax_percent")) {
         _.set(params, "tax_percent", _.get(subscription, "data.tax_percent", ""));
       }
+      if (_.has(subscription, "data.metadata")) {
+        _.set(params, "metadata", _.get(subscription, "data.metadata", ""));
+      }
+      if (_.has(subscription, "data.coupon")) {
+        _.set(params, "coupon", _.get(subscription, "data.coupon", ""));
+      }
       if (_.has(subscription, "data.billing")) {
         _.set(params, "billing", _.get(subscription, "data.billing", "charge_automatically"));
+      }
+      if (_.has(subscription, "data.source")) {
+        _.set(params, "source", _.get(subscription, "data.source", ""));
       }
       if (_.has(subscription, "data.days_until_due")) {
         _.set(params, "days_until_due", _.get(subscription, "data.days_until_due", 30));

@@ -355,10 +355,7 @@ class Stush {
 
   async on(event, callback) {
     try {
-      this._emitter.on(event, () => {
-        setImmediate(callback);
-      });
-      this._emitter.listeners(event);
+      this._emitter.on(event, callback);
     }
     catch (err) {
       return Promise.reject(err);

@@ -306,10 +306,16 @@ export default class Customer {
       if (!this.data.id) {
         return Promise.reject(generateError("Please provide a valid customer ID to add a new subscription."));
       }
+      await this.selfPopulate();
+      if (this._stush.fetchModel() === "single") {
+        if (this.isSubscribed()) {
+          return Promise.reject(generateError("Only one subscription is allowed per user in \"single subscription model\""));
+        }
+      }
       let subscription = subscriptionObj.clone();
       _.set(subscription, "data.customer", this.data.id);
       await subscription.save();
-      await this.selfPopulate();
+      // await this.selfPopulate();
       return Promise.resolve(subscription);
     }
     catch (err) {

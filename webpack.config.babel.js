@@ -13,7 +13,7 @@ export default {
   target: "node",
   externals: [nodeExternals()],
   entry: [
-    "babel-polyfill",
+    // "babel-polyfill",
     `${__dirname}/src/index.js`
   ],
   devtool: __development ? "source-map": "",

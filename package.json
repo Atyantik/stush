@@ -1,13 +1,14 @@
 {
   "name": "stush",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Simplified stripe subscriptions",
   "main": "lib/stush.js",
   "scripts": {
     "build": "cross-env NODE_ENV=production webpack",
     "start": "cross-env NODE_ENV=development webpack --progress --colors --watch",
     "prod:start": "cross-env NODE_ENV=production webpack --progress --colors --watch",
-    "test": "echo 1"
+    "test": "echo 1",
+    "prepublishOnly": "npm run build"
   },
   "repository": {
     "type": "git",

@@ -1,6 +1,3 @@
-if (!global._babelPolyfill) {
-  require("babel-polyfill");
-}
 import Stripe from "stripe";
 import _ from "lodash";
 import memCache from "memory-cache";

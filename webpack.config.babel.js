@@ -1,6 +1,8 @@
 import webpack from "webpack";
 import path from "path";
 import MinifyPlugin from "babel-minify-webpack-plugin";
+import CleanWebpackPlugin from "clean-webpack-plugin";
+
 
 // Track current mode of execution development/production
 const __development = process.env.NODE_ENV === "development";
@@ -36,7 +38,20 @@ export default {
       path.resolve("./src")
     ],
   },
+  externals: {
+    lodash: {
+      commonjs: "lodash",
+      commonjs2: "lodash",
+      amd: "lodash",
+      root: "_"
+    },
+    "better-queue": "better-queue",
+    "joi": "joi",
+    "stripe": "stripe",
+    "memory-cache": "memory-cache"
+  },
   plugins: [
+    new CleanWebpackPlugin(["lib"]),
     ...(__development ? []: [
       new MinifyPlugin()
     ]),

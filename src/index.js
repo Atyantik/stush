@@ -9,7 +9,7 @@ import Customer from "./customer/customer";
 import Subscription from "./subscription/subscription";
 import generateError from "./handler/error";
 import { makeUtilsGlobal } from "./utils";
-import BetterQueue from "better-queue";
+import BetterQueue from "at-better-queue";
 import Worker from "./hook/worker";
 import EventEmitter from "events";
 

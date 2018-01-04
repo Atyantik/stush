@@ -1,6 +1,6 @@
 {
   "name": "stush",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Simplified stripe subscriptions",
   "main": "lib/stush.js",
   "scripts": {
@@ -64,7 +64,7 @@
     ]
   },
   "dependencies": {
-    "better-queue": "^3.8.6",
+    "at-better-queue": "^3.8.6",
     "joi": "^13.0.2",
     "lodash": "^4.17.4",
     "memory-cache": "^0.2.0",

@@ -118,7 +118,7 @@ export default class Customer {
 
   async fetchAllSources(args = {}) {
     if (!this.data.id){
-      throw generateError("Please provide a valid customer ID to add a new subscription.");
+      throw generateError("Please provide a valid customer ID to fetch sources.");
     }
     try {
       const sources = await this._stush.stripe.customers.listSources(this.data.id, args);
@@ -204,6 +204,24 @@ export default class Customer {
         return Promise.resolve(new Source(this._stush, source));
       }
       return Promise.reject(err);
+    }
+  }
+
+  async verifySource (sourceId, amounts = []) {
+    if (!this.data.id){
+      throw generateError("Please provide a valid customer ID to verify source.");
+    }
+    try {
+      const source = await this._stush.stripe.customers.verifySource(
+        this.data.id,
+        sourceId,
+        {amounts: amounts}
+      );
+
+      return Promise.resolve(new Source(this._stush, source));
+    }
+    catch (e) {
+      return Promise.reject(e);
     }
   }
 

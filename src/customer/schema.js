@@ -90,8 +90,6 @@ export const formatCustomerData = (input) => {
     "sources",
     "subscriptions",
   ];
-  console.log("First ", _.pick(input, _.keys(_.omit(input, stripeCustomerKeys))));
-  console.log("Remastered ", _.omit(input, stripeCustomerKeys));
   let metadata = _.pick(input, _.keys(_.omit(input, stripeCustomerKeys)));
   if (!_.has(input, "metadata")) _.set(input, "metadata", {});
   _.assignIn(_.get(input, "metadata"), metadata);

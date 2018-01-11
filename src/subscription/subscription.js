@@ -46,11 +46,8 @@ export default class Subscription {
   set(data, allowImmutable = false) {
     let updatedData = _.cloneDeep(this.data);
     _.assignIn(updatedData, data);
-    debug(updatedData);
     updatedData = formatSubscriptionData(updatedData);
-    debug(updatedData);
     SubscriptionSchemaValidator(updatedData, allowImmutable);
-    debug(updatedData);
     this.data = updatedData;
   }
 
@@ -162,7 +159,6 @@ export default class Subscription {
         subscriptionItem = this.fetchSubscriptionItem();
       _.set(params, "items", _.get(subscription, "data.items"));
       _.set(params, "items[0].id", _.get(subscriptionItem, "id"));
-      debug("TO BE UPDATED SUB >>>>>>>>>>> ", subscription);
       if (_.has(subscription, "data.tax_percent")) {
         _.set(params, "tax_percent", _.get(subscription, "data.tax_percent", ""));
       }
@@ -211,11 +207,9 @@ export default class Subscription {
         upgradingPlan = _.get(newPlan, "data.amount") > _.get(planToChange, "data.amount"),
         chargeInstantly = this._stush.chargesInstantly();
       // Update the subscription.
-      debug("Final params >>>>>>>>>>>>>>>>>>.  ", params);
       this.data = await this._stush.stripe.subscriptions.update(this.data.id, params);
       if (!changeInBillingCycle && !freeToPaid && upgradingPlan && chargeInstantly) {
         // Create an invoice to initiate payment collection instantly.
-        debug("Generating a new invoice.");
         let invoice = new Invoice(this._stush, {
           customer: _.get(this, "data.customer"),
           subscription: _.get(this, "data.id")

@@ -12,6 +12,7 @@ import { makeUtilsGlobal } from "./utils";
 import BetterQueue from "at-better-queue";
 import Worker from "./hook/worker";
 import EventEmitter from "events";
+import Source from "./source/source";
 
 makeUtilsGlobal();
 
@@ -291,6 +292,35 @@ class Stush {
         return Promise.reject(generateError(err.details));
       }
       return Promise.reject(generateError(null, err));
+    }
+  }
+
+  async fetchSource(sourceId = null, customerId = null) {
+    if (!sourceId) {
+      throw generateError("Source ID is required to fetch source.");
+    }
+    if (!customerId && !_.startsWith(sourceId, "src")) {
+      throw generateError("Customer ID is required to fetch the type of source.");
+    }
+    try {
+      let source;
+      if (_.startsWith(sourceId, "card")) {
+        source = await this.stripe.customers.retrieveCard(customerId, sourceId);
+      }
+      else if (_.startsWith(sourceId, "ba")) {
+        source = await this.stripe.customers.retrieveSource(customerId, sourceId);
+      }
+      else if (_.startsWith(sourceId, "src")) {
+        source = await this.stripe.sources.retrieve(sourceId);
+      }
+      else {
+        return Promise.reject("Invalid source ID.");
+      }
+
+      return Promise.resolve(new Source(this, source));
+    }
+    catch (err) {
+      return Promise.reject(err);
     }
   }
 

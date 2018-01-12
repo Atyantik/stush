@@ -60,7 +60,13 @@ export const validator = (input, allowImmutable = false) => {
   }
   if (!allowImmutable) {
     let mutableFields = [
+      "account_balance",
+      "default_source",
+      "description",
+      "discount",
+      "email",
       "metadata",
+      "shipping",
       "name",
       "statement_descriptor"
     ];

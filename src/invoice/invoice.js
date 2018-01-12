@@ -75,6 +75,22 @@ export default class Invoice {
     return JSON.parse(JSON.stringify(_.pick(this, ["data"])));
   }
 
+  async pay(sourceId = null) {
+    if (!this.data.id) {
+      return Promise.reject(generateError("Invoice ID is required to pay an invoice. Instantiate with a valid invoice ID."));
+    }
+    try {
+      const params = sourceId ? {source: sourceId} : {};
+      const invoice = await this._stush.stripe.invoices.pay(this.data.id, params);
+      debug(invoice);
+      this.set(invoice, true);
+      debug("Stush invoice >>>>>>>>>>> ", this);
+    }
+    catch (err) {
+      return Promise.reject(err);
+    }
+  }
+
   /**
    * Populates the local invoice instance from Stripe with upcoming invoice.
    * @param args

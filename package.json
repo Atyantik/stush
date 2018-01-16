@@ -1,6 +1,6 @@
 {
   "name": "stush",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Simplified stripe subscriptions",
   "main": "lib/stush.js",
   "scripts": {

@@ -25,7 +25,7 @@ export const validator = (input, allowImmutable = false) => {
   }
   let output = Joi.validate(input, schema, options);
   if (output.error) {
-    throw output.error;
+    throw generateError(output.error);
   }
   if (!allowImmutable) {
     let mutableFields = [

@@ -22,7 +22,7 @@ export default class Coupon {
       return Promise.resolve(couponArray);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 

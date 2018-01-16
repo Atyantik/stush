@@ -34,7 +34,7 @@ export default class Subscription {
       return Promise.resolve(set);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -70,7 +70,7 @@ export default class Subscription {
       return Promise.resolve(this);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -88,7 +88,7 @@ export default class Subscription {
       return Promise.resolve(this);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -183,13 +183,7 @@ export default class Subscription {
       }
       else {
         if (_.has(subscription, "data.prorate_from")) {
-          return Promise.reject({
-            isJoi: true,
-            details: [{
-              message: "Proration is disabled in configuration options.",
-              code: 500
-            }]
-          });
+          return Promise.reject("Proration is disabled in configuration options.");
         }
         _.set(params, "prorate", false);
       }
@@ -219,7 +213,7 @@ export default class Subscription {
       return Promise.resolve(this);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -284,7 +278,7 @@ export default class Subscription {
       return Promise.resolve(response);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 }

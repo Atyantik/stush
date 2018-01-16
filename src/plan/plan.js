@@ -43,7 +43,7 @@ export default class Plan {
       return Promise.resolve(set);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -90,7 +90,7 @@ export default class Plan {
         this.set(data, true);
         return Promise.resolve(this);
       }
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -121,7 +121,7 @@ export default class Plan {
       return Promise.resolve(this);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -143,7 +143,7 @@ export default class Plan {
       return Promise.resolve(this);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 

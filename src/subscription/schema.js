@@ -3,6 +3,7 @@
  */
 import Joi from "joi";
 import _ from "lodash";
+import generateError from "../handler/error";
 
 const stripeSubscriptionKeys = [
   "id",
@@ -77,7 +78,7 @@ export const changeSubscriptionSchema = Joi.object().keys({
 export const validator = (input, allowImmutable = false) => {
   let output = Joi.validate(input, schema, {allowUnknown: true});
   if (output.error) {
-    throw output.error;
+    throw generateError(output.error);
   }
   if (_.get(output, "value.billing", false) !== "send_invoice") {
     _.unset(output, "value.days_until_due");
@@ -156,7 +157,7 @@ export const formatChangeSubscriptionInput = (input, from) => {
 export const changeSubscriptionValidator = input => {
   let output = Joi.validate(input, changeSubscriptionSchema);
   if (output.error) {
-    throw output.error;
+    throw generateError(output.error);
   }
   return output;
 };

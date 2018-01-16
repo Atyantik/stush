@@ -30,7 +30,7 @@ export default class Invoice {
       return Promise.resolve(set);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -64,7 +64,7 @@ export default class Invoice {
       return Promise.resolve(this);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -82,12 +82,10 @@ export default class Invoice {
     try {
       const params = sourceId ? {source: sourceId} : {};
       const invoice = await this._stush.stripe.invoices.pay(this.data.id, params);
-      debug(invoice);
       this.set(invoice, true);
-      debug("Stush invoice >>>>>>>>>>> ", this);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 

@@ -46,13 +46,8 @@ const isEmpty = (obj) => {
   return true;
 };
 
-const timeout = (ms) => {
-  return new Promise.resolve(setTimeout(ms));
-};
-
 export const makeUtilsGlobal = () => {
   global.debug = debug;
-  global.timeout = timeout;
   global.deleteProperties = deleteProperties;
   global.stripEmptyObjects = stripEmptyObjects;
 };

@@ -13,10 +13,19 @@ export default class Source {
     this.set(data);
   }
 
-  set (data) {
+  set (data, allowImmutable = false) {
     let updatedData = _.cloneDeep(this.data);
     _.assignIn(updatedData, data);
     this.data = updatedData;
+  }
+
+  async save() {
+    try {
+      //
+    }
+    catch (err) {
+      return Promise.reject(generateError(err));
+    }
   }
 
   /**

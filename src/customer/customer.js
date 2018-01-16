@@ -35,7 +35,7 @@ export default class Customer {
       return Promise.resolve(set);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -67,7 +67,7 @@ export default class Customer {
     try {
       let data = {};
       if (_.has(this.data, "id")) {
-        let params = CustomerSchemaValidator(this.data);
+        let params = await CustomerSchemaValidator(this.data);
         data = await this._stush.stripe.customers.update(this.data.id, params.value);
       }
       else {
@@ -77,7 +77,7 @@ export default class Customer {
       return Promise.resolve(this);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -94,7 +94,7 @@ export default class Customer {
       return Promise.resolve(this);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -112,7 +112,7 @@ export default class Customer {
       return Promise.resolve(this);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -130,7 +130,7 @@ export default class Customer {
       return Promise.resolve(sourcesArray);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -147,7 +147,7 @@ export default class Customer {
       return Promise.resolve(new Source(this._stush, source));
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -182,7 +182,7 @@ export default class Customer {
         const source = await this._stush.stripe.customers.updateCard(this.data.id, sourceId, sourceParams);
         return Promise.resolve(new Source(this._stush, source));
       }
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -203,7 +203,7 @@ export default class Customer {
         const source = await this._stush.stripe.customers.deleteCard(this.data.id, sourceId);
         return Promise.resolve(new Source(this._stush, source));
       }
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -220,8 +220,8 @@ export default class Customer {
 
       return Promise.resolve(new Source(this._stush, source));
     }
-    catch (e) {
-      return Promise.reject(e);
+    catch (err) {
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -297,7 +297,7 @@ export default class Customer {
       return Promise.resolve(new Subscription(this._stush, requiredSubscription));
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -337,7 +337,7 @@ export default class Customer {
       return Promise.resolve(subscription);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -349,13 +349,7 @@ export default class Customer {
   async endSubscription(subscription = null) {
     try {
       if (!subscription && this._stush.fetchModel() === "multiple") {
-        return Promise.reject({
-          isJoi: true,
-          details: [{
-            message: "Valid subscription is required in Multiple Subscription Model.",
-            code: 500
-          }]
-        });
+        return Promise.reject("Valid subscription is required in Multiple Subscription Model.");
       }
       if (!subscription || !_.has(subscription, "data.id")) {
         await this.selfPopulate();
@@ -366,7 +360,7 @@ export default class Customer {
       return Promise.resolve(response);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -380,13 +374,7 @@ export default class Customer {
     try {
       await this.selfPopulate();
       if (this._stush.fetchModel() === "multiple" && !fromSubscription) {
-        return Promise.reject({
-          isJoi: true,
-          details: [{
-            message: "Valid subscription is required in Multiple Subscription Model.",
-            code: 500
-          }]
-        });
+        return Promise.reject("Valid subscription is required in Multiple Subscription Model.");
       }
       if (!fromSubscription) {
         fromSubscription = await this.fetchSubscription();
@@ -396,7 +384,7 @@ export default class Customer {
       return Promise.resolve(subscription);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -413,13 +401,7 @@ export default class Customer {
     try {
       await this.selfPopulate();
       if (this._stush.fetchModel() === "multiple" && !_.has(fromSubscription, "data.id") && !_.get(toSubscription, "data.cancellation_proration", false)) {
-        return Promise.reject({
-          isJoi: true,
-          details: [{
-            message: "Valid subscription is required in Multiple Subscription Model.",
-            code: 500
-          }]
-        });
+        return Promise.reject("Valid subscription is required in Multiple Subscription Model.");
       }
       if (!fromSubscription) {
         if (_.get(toSubscription, "data.cancellation_proration", false)) {
@@ -470,7 +452,7 @@ export default class Customer {
       return Promise.resolve(prorationData);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -485,7 +467,7 @@ export default class Customer {
       return Promise.resolve(new Refund(this._stush, refund));
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -503,7 +485,7 @@ export default class Customer {
       return Promise.resolve(invoices);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -553,7 +535,7 @@ export default class Customer {
       return Promise.resolve(invoice);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -573,7 +555,7 @@ export default class Customer {
       return Promise.resolve(new Invoice(this._stush, _.head(invoice.data)));
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 

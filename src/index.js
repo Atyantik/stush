@@ -411,6 +411,7 @@ class Stush {
 module.exports = {
   Stush: Stush,
   Plan: Plan,
+  Source: Source,
   Coupon: Coupon,
   Invoice: Invoice,
   Customer: Customer,

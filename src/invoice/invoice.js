@@ -3,7 +3,10 @@
  */
 import _ from "lodash";
 import generateError from "../handler/error";
-import InvoiceSchema, {validator as InvoiceSchemaValidator, sanitizePopulateWithUpcoming} from "./schema";
+import InvoiceSchema, {
+  validator as InvoiceSchemaValidator, sanitizePopulateWithUpcoming,
+  formatInvoiceData
+} from "./schema";
 
 export default class Invoice {
   data = {};
@@ -42,6 +45,7 @@ export default class Invoice {
   set(data, allowImmutable = false) {
     let updatedData = _.cloneDeep(this.data);
     _.assignIn(updatedData, data);
+    updatedData = formatInvoiceData(updatedData);
     InvoiceSchemaValidator(updatedData, allowImmutable);
     this.data = updatedData;
   }
@@ -53,15 +57,46 @@ export default class Invoice {
   async save () {
     try {
       let data;
+      let params = _.cloneDeep(_.get(this, "data", {}));
       if (_.has(this, "data.id")) {
         // Update this invoice.
+        _.unset(params, "id");
+        _.unset(params, "customer");
+        data = await this._stush.stripe.invoices.update(_.get(this, "data.id", ""), params);
       }
       else {
         // Create a new invoice.
-        data = await this._stush.stripe.invoices.create(this.data);
+        data = await this._stush.stripe.invoices.create(_.get(this, "data", {}));
       }
       this.set(data, true);
       return Promise.resolve(this);
+    }
+    catch (err) {
+      return Promise.reject(generateError(err));
+    }
+  }
+
+  async selfPopulate() {
+    try {
+      if (!_.get(this, "data.id", "")) {
+        return Promise.reject("Please provide a valid invoice ID to self populate.");
+      }
+      const invoice = await this._stush.stripe.invoices.retrieve(_.get(this, "data.id", ""));
+      this.set(invoice, true);
+      return Promise.resolve(this);
+    }
+    catch (err) {
+      return Promise.reject(generateError(err));
+    }
+  }
+
+  async fetchItems() {
+    try {
+      if (!_.get(this, "data.id", "")) {
+        return Promise.reject("Please provide a valid invoice ID to fetch its line items.");
+      }
+      const invoiceItems = await this._stush.stripe.invoices.retrieveLines(_.get(this, "data.id", ""));
+      return Promise.resolve(invoiceItems);
     }
     catch (err) {
       return Promise.reject(generateError(err));

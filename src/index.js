@@ -151,10 +151,7 @@ class Stush {
       return Promise.resolve(customer);
     }
     catch (err) {
-      if (_.get(err, "isJoi", null)) {
-        return Promise.reject(generateError(err.details));
-      }
-      return Promise.reject(generateError(null, err));
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -170,7 +167,7 @@ class Stush {
       return Promise.resolve(customer);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -186,7 +183,7 @@ class Stush {
       return Promise.resolve(customer);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -220,23 +217,17 @@ class Stush {
           subscription = await customer.addSubscription(subscription);
         }
         const resolved = {
-          data: {
-            customer: customer,
-            subscription: subscription
-          },
-          code: 200
+          customer: customer,
+          subscription: subscription
         };
         return Promise.resolve(resolved);
       }
       catch (err) {
-        if (_.get(err, "isJoi", null)) {
-          return Promise.reject(generateError(err.details));
-        }
-        return Promise.reject(generateError(null, err));
+        return Promise.reject(generateError(err));
       }
     }
     else {
-      return Promise.reject(generateError(input.error.details));
+      return Promise.reject(generateError(input.error));
     }
   }
 
@@ -247,12 +238,11 @@ class Stush {
    * @returns {Promise.<*>}
    */
   async changeSubscription(toSubscription, fromSubscription) {
-    if (!fromSubscription) {
-      throw generateError("Subscription to change is required.");
-    }
     try {
+      if (!fromSubscription) {
+        return Promise.reject("Subscription to change is required.");
+      }
       if (!_.get(fromSubscription, "data.object", null)) {
-        debug(fromSubscription); process.exit();
         await fromSubscription.selfPopulate();
       }
       const subscription = fromSubscription.clone();
@@ -260,10 +250,7 @@ class Stush {
       return Promise.resolve(subscription);
     }
     catch (err) {
-      if (_.get(err, "isJoi", null)) {
-        return Promise.reject(generateError(err.details));
-      }
-      return Promise.reject(generateError(null, err));
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -273,10 +260,10 @@ class Stush {
    * @returns {Promise.<*>}
    */
   async cancelSubscription (subscription = null) {
-    if (!subscription) {
-      throw generateError("Subscription is required for cancellation.");
-    }
     try {
+      if (!subscription) {
+        return Promise.reject("Subscription is required for cancellation.");
+      }
       if (typeof subscription === "string") {
         const subObj = new Subscription(this, {
           id: subscription
@@ -288,21 +275,18 @@ class Stush {
       return Promise.resolve(response);
     }
     catch (err) {
-      if (_.get(err, "isJoi", null)) {
-        return Promise.reject(generateError(err.details));
-      }
-      return Promise.reject(generateError(null, err));
+      return Promise.reject(generateError(err));
     }
   }
 
   async fetchSource(sourceId = null, customerId = null) {
-    if (!sourceId) {
-      throw generateError("Source ID is required to fetch source.");
-    }
-    if (!customerId && !_.startsWith(sourceId, "src")) {
-      throw generateError("Customer ID is required to fetch the type of source.");
-    }
     try {
+      if (!sourceId) {
+        return Promise.reject("Source ID is required to fetch source.");
+      }
+      if (!customerId && !_.startsWith(sourceId, "src")) {
+        return Promise.reject("Customer ID is required to fetch the type of source.");
+      }
       let source;
       if (_.startsWith(sourceId, "card")) {
         source = await this.stripe.customers.retrieveCard(customerId, sourceId);
@@ -316,11 +300,10 @@ class Stush {
       else {
         return Promise.reject("Invalid source ID.");
       }
-
       return Promise.resolve(new Source(this, source));
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -332,16 +315,10 @@ class Stush {
           return Promise.resolve(value);
         }
       }
-      return Promise.reject({
-        isJoi: true,
-        details: {
-          message: "Invalid coupon code!",
-          code: 404
-        }
-      });
+      return Promise.reject(generateError("Invalid coupon code!", 404));
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -363,7 +340,7 @@ class Stush {
       return Promise.resolve(validJson);
     }
     catch (err) {
-      return err;
+      return Promise.reject(generateError(err));
     }
   }
 

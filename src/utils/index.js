@@ -33,6 +33,7 @@ const stripEmptyObjects = (object) => {
   }
   let array = _.toPairs(object);
   _.remove(array, ([key, value]) => {
+    debug(key, value, typeof value);
     return typeof value === "object" && isEmpty(value);
   });
   return _.fromPairs(array);

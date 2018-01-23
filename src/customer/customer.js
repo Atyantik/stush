@@ -141,10 +141,24 @@ export default class Customer {
    */
   async attachSource (sourceId) {
     try {
-      const source = await this._stush.stripe.customers.createSource(this.data.id, {
-        source: sourceId
-      });
-      return Promise.resolve(new Source(this._stush, source));
+      if (!_.get(this, "data.id", "")) {
+        return Promise.reject("Please provide a valid customer ID to attach a source to.");
+      }
+      let source;
+      if (_.isString(sourceId)) {
+        source = new Source(this._stush, {
+          id: sourceId,
+          customer: _.get(this, "data.id", "")
+        });
+      }
+      else if (sourceId instanceof Source) {
+        source = sourceId.clone();
+      }
+      else {
+        return Promise.reject("Please provide a valid source ID or Source instance to attach.");
+      }
+      await source.attachTo(this);
+      return Promise.resolve(source);
     }
     catch (err) {
       return Promise.reject(generateError(err));
@@ -193,16 +207,30 @@ export default class Customer {
    */
   async detachSource (sourceId) {
     try {
-      const source = await this._stush.stripe.customers.deleteSource(this.data.id, {
-        source: sourceId
-      });
-      return Promise.resolve(new Source(this._stush, source));
+      const customerId = _.get(this, "data.id", "");
+      if (!customerId) {
+        return Promise.reject("Please provide a valid customer ID to detach a source from.");
+      }
+      let source;
+      if (_.isString(sourceId)) {
+        source = new Source(this._stush, {
+          id: sourceId,
+          customer: customerId
+        });
+      }
+      else if (sourceId instanceof Source) {
+        source = sourceId.clone();
+        if (!_.has(source, "data.customer")) {
+          _.set(source, "data.customer", customerId);
+        }
+      }
+      else {
+        return Promise.reject("Please provide a valid source ID or Source instance.");
+      }
+      await source.delete();
+      return Promise.resolve(source);
     }
     catch (err) {
-      if (_.has(err, "raw") && err.raw.param === "id" && _.startsWith(err.raw.message, "No such source")) {
-        const source = await this._stush.stripe.customers.deleteCard(this.data.id, sourceId);
-        return Promise.resolve(new Source(this._stush, source));
-      }
       return Promise.reject(generateError(err));
     }
   }

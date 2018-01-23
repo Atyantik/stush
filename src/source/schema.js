@@ -94,7 +94,36 @@ const schema = Joi.object().keys({
   funding: Joi.string().valid("credit", "debit", "prepaid", "unknown"),
   name: Joi.string().allow(null),
   tokenization_method: Joi.string().valid("apple_pay", "android_pay").allow(null),
+  deleted: Joi.boolean().optional()
 });
+
+const stripeCardKeys = [
+  "source",
+  "metadata",
+  "id",
+  "address_city",
+  "address_country",
+  "address_line1",
+  "address_line2",
+  "address_state",
+  "address_zip",
+  "exp_month",
+  "exp_year",
+  "name",
+];
+
+const stripeBankAccountKeys = [
+  "source",
+  "metadata",
+  "id",
+  "account_holder_name",
+  "account_holder_type",
+];
+
+const stripeSourceKeys = [
+  "metadata",
+  "owner",
+];
 
 export const validator = (input, allowImmutable = false) => {
   let output = Joi.validate(input, schema, {allowUnknown: true});
@@ -122,56 +151,28 @@ export const validator = (input, allowImmutable = false) => {
   return output;
 };
 
-export const formatSourceData = (input) => {
-  const stripeSourceKeys = [
-    "id",
-    "object",
-    "usage",
-    "amount",
-    "client_secret",
-    "code_verification",
-    "created",
-    "currency",
-    "flow",
-    "livemode",
-    "metadata",
-    "owner",
-    "receiver",
-    "redirect",
-    "statement_descriptor",
-    "status",
-    "type",
-    "account",
-    "account_holder_name",
-    "account_holder_type",
-    "bank_name",
-    "country",
-    "default_for_currency",
-    "fingerprint",
-    "last4",
-    "routing_number",
-    "address_city",
-    "address_country",
-    "address_line1",
-    "address_line1_check",
-    "address_line2",
-    "address_state",
-    "address_zip",
-    "address_zip_check",
-    "brand",
-    "customer",
-    "cvc_check",
-    "dynamic_last4",
-    "exp_month",
-    "exp_year",
-    "funding",
-    "name",
-    "tokenization_method",
-  ];
-  let metadata = _.pick(input, _.keys(_.omit(input, stripeSourceKeys)));
+export const formatSourceData = (input, common = true) => {
+  let metadata;
+  if (common) {
+    metadata = _.pick(input, _.keys(_.omit(input, _.keys(input, schema))));
+  }
+  else {
+    let sourceId = _.get(input, "id", "");
+    if (_.startsWith(sourceId, "card")) {
+      metadata = _.omit(input, stripeCardKeys);
+      deleteProperties(input, _.keys(_.omit(input, stripeCardKeys)));
+    }
+    else if (_.startsWith(sourceId, "ba")) {
+      metadata = _.omit(input, stripeBankAccountKeys);
+      deleteProperties(input, _.keys(_.omit(input, stripeBankAccountKeys)));
+    }
+    else {
+      metadata = _.omit(input, stripeSourceKeys);
+      deleteProperties(input, _.keys(_.omit(input, stripeSourceKeys)));
+    }
+  }
   if (!_.has(input, "metadata")) _.set(input, "metadata", {});
   _.assignIn(_.get(input, "metadata"), metadata);
-  deleteProperties(input, _.keys(_.omit(input, stripeSourceKeys)));
   return input;
 };
 

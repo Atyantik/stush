@@ -28,18 +28,15 @@ export default class Plan {
         cacheLifetime = stushInstance.fetchCacheLifetime(),
         cacheKeys = cache.keys();
       let set = [];
-      if (cacheKeys.includes("all_plans") && !_.get(args, "refresh_cache", false)) {
-        set = cache.get("all_plans");
-      }
-      else {
+      if (cacheKeys <= 0 || _.get(args, "refresh_cache", "")) {
         _.unset(args, "refresh_cache");
         const plans = await stushInstance.stripe.plans.list(args);
         for (let plan of plans.data) {
-          set.push(new Plan(stushInstance, plan));
           cache.put(_.get(plan, "id"), new Plan(stushInstance, plan), cacheLifetime);
         }
         cache.put("all_plans", set, cacheLifetime);
       }
+      set = cache.get("all_plans");
       return Promise.resolve(set);
     }
     catch (err) {
@@ -105,6 +102,7 @@ export default class Plan {
     try {
       let data;
       const cacheKeys = this._cache.keys();
+      debug(cacheKeys);
       if (cacheKeys.includes(this.data.id)) {
         data = this._cache.get(this.data.id).data;
       }
@@ -177,6 +175,7 @@ export default class Plan {
    */
   updateAllPlansCache(newPlan, deletingPlan = false) {
     const cache = this._stush.fetchCacheInstance();
+    debug(cache.keys());
     const plans = cache.get("all_plans");
     for (let plan of plans) {
       _.remove(plans, () => {

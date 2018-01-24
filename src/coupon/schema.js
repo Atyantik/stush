@@ -25,7 +25,9 @@ const schema = Joi.object().keys({
   times_redeemed: Joi.number().positive().allow(0),
   valid: Joi.boolean(),
   deleted: Joi.boolean()
-}).without("amount_off", ["percent_off"]).without("percent_off", ["amount_off"]);
+}).or("amount_off", "percent_off")
+  .without("amount_off", ["percent_off"])
+  .without("percent_off", ["amount_off"]);
 
 const mutableFields = [
   "id",

@@ -33,13 +33,14 @@ export default class Coupon {
     let updatedData = _.cloneDeep(this.data);
     _.assignIn(updatedData, data);
     updatedData = formatCouponData(updatedData, allowImmutable);
+    // Validation is done only for save -- separately for create and update.
     this.data = updatedData;
   }
 
   async save() {
     try {
       await this._stush.stripe.coupons.retrieve(_.get(this, "data.id", ""));
-      // Update coupon
+      // Update coupon: Stripe only allows to update metadata after creation of a Coupon.
       couponSchemaValidator(_.get(this, "data", {}), false);
       let coupon = await this._stush.stripe.coupons.update(
         _.get(this, "data.id", ""),
@@ -50,8 +51,8 @@ export default class Coupon {
     }
     catch (err) {
       try {
+        // Create coupon if no Coupon exists for the provided coupon ID.
         if (_.get(err, "statusCode", 0) === 404) {
-          // Create coupon
           couponSchemaValidator(_.get(this, "data", {}), false);
           let coupon = await this._stush.stripe.coupons.create(_.get(this, "data", {}));
           this.set(coupon, true);

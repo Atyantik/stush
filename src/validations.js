@@ -13,16 +13,6 @@ const stushOptionsSchema = Joi.object().keys({
   charge_instantly: Joi.boolean()
 });
 
-const createPlanSchema = Joi.object().keys({
-  id: Joi.string().required(),
-  price: Joi.number().min(0).required(),
-  currency: Joi.string().length(3, "utf8").required(),
-  bill_every: Joi.string().required(),
-  name: Joi.string().required(),
-  metadata: Joi.object(),
-  statement_descriptor: Joi.string()
-});
-
 const createSubscriptionSchema = Joi.object().keys({
   customer: Joi.alternatives([Joi.object(), Joi.string().token()]).required(),
   subscription: Joi.object().keys({

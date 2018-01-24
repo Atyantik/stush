@@ -331,13 +331,13 @@ export default class Customer {
 
   /**
    * Fetches all the subscriptions on local customer instance.
-   * @returns {Set}
+   * @returns {array}
    */
   fetchAllSubscriptions () {
     const subscriptions = _.get(this.data, "subscriptions.data");
-    let set = new Set();
+    let set = [];
     for (let subscription of subscriptions) {
-      set.add(new Subscription(this._stush, subscription));
+      set.push(new Subscription(this._stush, subscription));
     }
     return set;
   }

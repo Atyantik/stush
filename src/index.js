@@ -83,63 +83,6 @@ class Stush {
   }
 
   /**
-   * Creates a new plan.
-   * @param args
-   * @returns {Promise.<*>}
-   */
-  async createPlan (args) {
-    try {
-      let input = this.validator.createPlanInput(args);
-      let plan = new Plan(this, input.value);
-      await plan.save();
-      return Promise.resolve(plan);
-    }
-    catch (err) {
-      if (_.get(err, "isJoi", null)) {
-        return Promise.reject(generateError(err.details));
-      }
-      return Promise.reject(generateError(null, err));
-    }
-  }
-
-  /**
-   * Deletes a plan.
-   * @param planId
-   * @returns {Promise.<*>}
-   */
-  async deletePlan (planId) {
-    try {
-      let plan = new Plan(this, {id: planId});
-      await plan.delete();
-      return Promise.resolve(plan);
-    }
-    catch (err) {
-      if (_.get(err, "isJoi", null)) {
-        return Promise.reject(generateError(err.details));
-      }
-      return Promise.reject(generateError(null, err));
-    }
-  }
-
-  /**
-   * Fetches all plans.
-   * @param args
-   * @returns {Promise.<*>}
-   */
-  async fetchAllPlans (args) {
-    try {
-      const plans = await Plan.fetchAll(this, args);
-      return Promise.resolve(plans);
-    }
-    catch (err) {
-      if (_.get(err, "isJoi", null)) {
-        return Promise.reject(generateError(err.details));
-      }
-      return Promise.reject(generateError(null, err));
-    }
-  }
-
-  /**
    * Creates a new customer.
    * @param customerData
    * @returns {Promise.<*>}
@@ -160,119 +103,14 @@ class Stush {
    * @param customerId
    * @returns {Promise.<*>}
    */
-  async getCustomer (customerId) {
+  async fetchCustomer (customerId) {
     try {
+      if (!customerId) {
+        return Promise.reject("Please provide a valid customer ID to fetch a customer.")
+      }
       let customer = new Customer(this, {id: customerId});
       await customer.selfPopulate();
       return Promise.resolve(customer);
-    }
-    catch (err) {
-      return Promise.reject(generateError(err));
-    }
-  }
-
-  /**
-   * Deletes a customer.
-   * @param customerId
-   * @returns {Promise.<*>}
-   */
-  async deleteCustomer (customerId) {
-    try {
-      const customer = new Customer(this, {id: customerId});
-      await customer.delete();
-      return Promise.resolve(customer);
-    }
-    catch (err) {
-      return Promise.reject(generateError(err));
-    }
-  }
-
-  /**
-   * Creates a new subscription (and customer, based on the arguments).
-   * @param args
-   * @returns {Promise.<*>}
-   */
-  async createSubscription (args) {
-    let input = this.validator.createSubscriptionInput(args);
-    // debug("Vanguard validation: ", input.value);process.exit();
-    if (!input.error) {
-      try {
-        let subscription = new Subscription(this, _.get(input, "value.subscription")),
-          customer = new Customer(this, _.get(input, "value.customer"));
-        if (_.has(input, "value.customer.id")) {
-          // Create subscription for provided customer.
-          // Sync local instance with stripe instance of customer.
-          await customer.selfPopulate();
-          if (this.fetchModel() === "single") {
-            if (customer.isSubscribed()) {
-              return Promise.reject(generateError("Only one subscription is allowed per user in \"single subscription model\""));
-            }
-          }
-          subscription = await customer.addSubscription(subscription);
-        }
-        else {
-          // Create new customer and a subscription.
-          // Save local instance of customer to stripe.
-          await customer.save();
-          subscription = await customer.addSubscription(subscription);
-        }
-        const resolved = {
-          customer: customer,
-          subscription: subscription
-        };
-        return Promise.resolve(resolved);
-      }
-      catch (err) {
-        return Promise.reject(generateError(err));
-      }
-    }
-    else {
-      return Promise.reject(generateError(input.error));
-    }
-  }
-
-  /**
-   * Changes a susbcription (upgrades or downgrades).
-   * @param toSubscription
-   * @param fromSubscription
-   * @returns {Promise.<*>}
-   */
-  async changeSubscription(toSubscription, fromSubscription) {
-    try {
-      if (!fromSubscription) {
-        return Promise.reject("Subscription to change is required.");
-      }
-      if (!_.get(fromSubscription, "data.object", null)) {
-        await fromSubscription.selfPopulate();
-      }
-      const subscription = fromSubscription.clone();
-      await subscription.change(toSubscription);
-      return Promise.resolve(subscription);
-    }
-    catch (err) {
-      return Promise.reject(generateError(err));
-    }
-  }
-
-  /**
-   * Cancels a subscription.
-   * @param subscription
-   * @returns {Promise.<*>}
-   */
-  async cancelSubscription (subscription = null) {
-    try {
-      if (!subscription) {
-        return Promise.reject("Subscription is required for cancellation.");
-      }
-      if (typeof subscription === "string") {
-        const subObj = new Subscription(this, {
-          id: subscription
-        });
-        await subObj.selfPopulate();
-        subscription = subObj.clone();
-      }
-      const response = await subscription.cancel();
-      return Promise.resolve(response);
     }
     catch (err) {
       return Promise.reject(generateError(err));
@@ -301,21 +139,6 @@ class Stush {
         return Promise.reject("Invalid source ID.");
       }
       return Promise.resolve(new Source(this, source));
-    }
-    catch (err) {
-      return Promise.reject(generateError(err));
-    }
-  }
-
-  async validateCoupon(couponCode) {
-    try {
-      const coupons = Coupon.fetchAll(this);
-      for (let value of coupons) {
-        if (couponCode === _.get(value, "data.id")) {
-          return Promise.resolve(value);
-        }
-      }
-      return Promise.reject(generateError("Invalid coupon code!", 404));
     }
     catch (err) {
       return Promise.reject(generateError(err));

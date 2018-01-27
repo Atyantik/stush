@@ -28,7 +28,7 @@ export default class Plan {
         cacheLifetime = stushInstance.fetchCacheLifetime(),
         cacheKeys = cache.keys();
       let set = [];
-      if (cacheKeys <= 0 || _.get(args, "refresh_cache", "")) {
+      if (cacheKeys.length <= 0 || _.get(args, "refresh_cache", "") || !cacheKeys.includes("all_plans")) {
         _.unset(args, "refresh_cache");
         const plans = await stushInstance.stripe.plans.list(args);
         for (let plan of plans.data) {
@@ -52,7 +52,7 @@ export default class Plan {
   set (data, allowImmutable = false) {
     let updatedData = _.cloneDeep(this.data);
     _.assignIn(updatedData, data);
-    updatedData = formatPlanData(updatedData);
+    updatedData = formatPlanData(updatedData, allowImmutable);
     this.data = updatedData;
   }
 
@@ -60,7 +60,7 @@ export default class Plan {
    * Attempts to update the plan; falls back to creating one.
    * @returns {Promise.<*>}
    */
-  async save () {
+  async oldSave () {
     try {
       let params = PlanSchemaValidator(this.data);
       const data = await this._stush.stripe.plans.update(this.data.id, params.value);
@@ -75,6 +75,7 @@ export default class Plan {
       return Promise.resolve(this);
     }
     catch (err) {
+      debug("Caught error >>>>>>>>> ", err);
       if (_.has(err, "raw") && err.raw.param === "plan" && err.raw.statusCode === 404) {
         const data = await this._stush.stripe.plans.create(this.data);
         this._cache.put(data.id, new Plan(this._stush, data), this._stush.fetchCacheLifetime());
@@ -91,6 +92,66 @@ export default class Plan {
     }
   }
 
+  async save() {
+    try {
+      // If a plan doesn't exist, then flow will go to catch block.
+      await this._stush.stripe.plans.retrieve(_.get(this, "data.id", ""));
+      let params = _.cloneDeep(this);
+      _.unset(params, "data.id");
+      PlanSchemaValidator(_.get(params, "data", {}));
+      const data = await this._stush.stripe.plans.update(
+        _.get(this, "data.id", ""),
+        _.get(params, "data", {})
+      );
+      // Update cache
+      this._cache.put(
+        _.get(data, "id", ""),
+        new Plan(this._stush, data), this._stush.fetchCacheLifetime()
+      );
+      // If all_plans cache key doesn't exist then fetch and cache it; otherwise, update it.
+      if (!this._cache.keys().includes("all_plans")) {
+        await Plan.fetchAll(this._stush);
+      }
+      else {
+        this.updateAllPlansCache(data);
+      }
+      this.set(data, true);
+      return Promise.resolve(this);
+    }
+    catch (err) {
+      try {
+        if (_.get(err, "statusCode", 0) === 404) {
+          PlanSchemaValidator(_.get(this, "data", {}));
+          const data = await this._stush.stripe.plans.create(
+            _.get(this, "data", {})
+          );
+          // Update cache
+          this._cache.put(
+            _.get(data, "id", ""),
+            new Plan(this._stush, data), this._stush.fetchCacheLifetime()
+          );
+          // If all_plans cache key doesn't exist then fetch and cache it; otherwise, update it.
+          if (!this._cache.keys().includes("all_plans")) {
+            await Plan.fetchAll(this._stush);
+          }
+          else {
+            this.updateAllPlansCache(data);
+          }
+          this.set(data, true);
+          return Promise.resolve(this);
+        }
+        else {
+          debug("In first catch >>>>>>> ", err);
+          return Promise.reject(generateError(err));
+        }
+      }
+      catch (e) {
+        debug("In second catch >>>>>>> ", e);
+        return Promise.reject(generateError(e));
+      }
+    }
+  }
+
   /**
    * Populates the local plan from Stripe.
    * @returns {Promise.<*>}
@@ -102,7 +163,6 @@ export default class Plan {
     try {
       let data;
       const cacheKeys = this._cache.keys();
-      debug(cacheKeys);
       if (cacheKeys.includes(this.data.id)) {
         data = this._cache.get(this.data.id).data;
       }
@@ -175,7 +235,6 @@ export default class Plan {
    */
   updateAllPlansCache(newPlan, deletingPlan = false) {
     const cache = this._stush.fetchCacheInstance();
-    debug(cache.keys());
     const plans = cache.get("all_plans");
     for (let plan of plans) {
       _.remove(plans, () => {

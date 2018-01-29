@@ -75,7 +75,6 @@ export default class Plan {
       return Promise.resolve(this);
     }
     catch (err) {
-      debug("Caught error >>>>>>>>> ", err);
       if (_.has(err, "raw") && err.raw.param === "plan" && err.raw.statusCode === 404) {
         const data = await this._stush.stripe.plans.create(this.data);
         this._cache.put(data.id, new Plan(this._stush, data), this._stush.fetchCacheLifetime());
@@ -141,12 +140,10 @@ export default class Plan {
           return Promise.resolve(this);
         }
         else {
-          debug("In first catch >>>>>>> ", err);
           return Promise.reject(generateError(err));
         }
       }
       catch (e) {
-        debug("In second catch >>>>>>> ", e);
         return Promise.reject(generateError(e));
       }
     }

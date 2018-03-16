@@ -33,6 +33,7 @@ const stripEmptyObjects = (object) => {
   }
   let array = _.toPairs(object);
   _.remove(array, ([key, value]) => {
+    debug(key, value, typeof value);
     return typeof value === "object" && isEmpty(value);
   });
   return _.fromPairs(array);
@@ -46,13 +47,8 @@ const isEmpty = (obj) => {
   return true;
 };
 
-const timeout = (ms) => {
-  return new Promise.resolve(setTimeout(ms));
-};
-
 export const makeUtilsGlobal = () => {
   global.debug = debug;
-  global.timeout = timeout;
   global.deleteProperties = deleteProperties;
   global.stripEmptyObjects = stripEmptyObjects;
 };

@@ -1,5 +1,6 @@
 import Joi from "joi";
 import _ from "lodash";
+import generateError from "../handler/error";
 
 const schema = Joi.object().keys({
   id: Joi.string(),
@@ -56,11 +57,17 @@ export const validator = (input, allowImmutable = false) => {
   }
   let output = Joi.validate(input, schema, options);
   if (output.error) {
-    throw output.error;
+    throw generateError(output.error);
   }
   if (!allowImmutable) {
     let mutableFields = [
+      "account_balance",
+      "default_source",
+      "description",
+      "discount",
+      "email",
       "metadata",
+      "shipping",
       "name",
       "statement_descriptor"
     ];
@@ -90,8 +97,6 @@ export const formatCustomerData = (input) => {
     "sources",
     "subscriptions",
   ];
-  console.log("First ", _.pick(input, _.keys(_.omit(input, stripeCustomerKeys))));
-  console.log("Remastered ", _.omit(input, stripeCustomerKeys));
   let metadata = _.pick(input, _.keys(_.omit(input, stripeCustomerKeys)));
   if (!_.has(input, "metadata")) _.set(input, "metadata", {});
   _.assignIn(_.get(input, "metadata"), metadata);
@@ -102,7 +107,7 @@ export const formatCustomerData = (input) => {
 export const previewProrationValidator = input => {
   let output = Joi.validate(input, previewProrationSchema);
   if (output.error) {
-    throw output.error;
+    throw generateError(output.error);
   }
   let subscription = _.get(input, "subscription"),
     subscriptionItem = subscription.fetchSubscriptionItem(_.get(input, "plan_to_change", null));
@@ -128,7 +133,7 @@ export const cancelSubscriptionValidator = (input) => {
   }
   let output = Joi.validate(input, cancelSubscriptionSchema, {stripUnknown: true});
   if (output.error) {
-    throw output.error;
+    throw generateError(output.error);
   }
   return output;
 };

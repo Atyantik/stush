@@ -1,11 +1,25 @@
 import _ from "lodash";
 
-export default function(stushError = null, stripeError = null) {
+export default function(stushError = null, statusCode = 500, code = null) {
+  let error;
   if (_.isString(stushError)) {
-    stushError = {
-      message: stushError,
-      code: 500
-    };
+    error = new Error(stushError);
+    error.isStushError = true;
+    error.statusCode = statusCode;
+    error.code = code;
   }
-  return new Error({stush: stushError, stripe: stripeError});
+  else if (_.get(stushError, "isJoi", false)) {
+    error = stushError;
+    error.statusCode = 422;
+    error.details = _.head(_.get(stushError, "details", []));
+  }
+  else if (_.get(stushError, "isStushError", false)) {
+    error = stushError;
+  }
+  else {
+    error = stushError;
+    error.isStripeError = true;
+  }
+
+  return error;
 }

@@ -35,7 +35,7 @@ export default class Customer {
       return Promise.resolve(set);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -67,7 +67,7 @@ export default class Customer {
     try {
       let data = {};
       if (_.has(this.data, "id")) {
-        let params = CustomerSchemaValidator(this.data);
+        let params = await CustomerSchemaValidator(this.data);
         data = await this._stush.stripe.customers.update(this.data.id, params.value);
       }
       else {
@@ -77,7 +77,7 @@ export default class Customer {
       return Promise.resolve(this);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -94,7 +94,7 @@ export default class Customer {
       return Promise.resolve(this);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -112,13 +112,13 @@ export default class Customer {
       return Promise.resolve(this);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
   async fetchAllSources(args = {}) {
     if (!this.data.id){
-      throw generateError("Please provide a valid customer ID to add a new subscription.");
+      throw generateError("Please provide a valid customer ID to fetch sources.");
     }
     try {
       const sources = await this._stush.stripe.customers.listSources(this.data.id, args);
@@ -130,7 +130,7 @@ export default class Customer {
       return Promise.resolve(sourcesArray);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -141,13 +141,27 @@ export default class Customer {
    */
   async attachSource (sourceId) {
     try {
-      const source = await this._stush.stripe.customers.createSource(this.data.id, {
-        source: sourceId
-      });
-      return Promise.resolve(new Source(this._stush, source));
+      if (!_.get(this, "data.id", "")) {
+        return Promise.reject("Please provide a valid customer ID to attach a source to.");
+      }
+      let source;
+      if (_.isString(sourceId)) {
+        source = new Source(this._stush, {
+          id: sourceId,
+          customer: _.get(this, "data.id", "")
+        });
+      }
+      else if (sourceId instanceof Source) {
+        source = sourceId.clone();
+      }
+      else {
+        return Promise.reject("Please provide a valid source ID or Source instance to attach.");
+      }
+      await source.attachTo(this);
+      return Promise.resolve(source);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -182,7 +196,7 @@ export default class Customer {
         const source = await this._stush.stripe.customers.updateCard(this.data.id, sourceId, sourceParams);
         return Promise.resolve(new Source(this._stush, source));
       }
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -193,17 +207,49 @@ export default class Customer {
    */
   async detachSource (sourceId) {
     try {
-      const source = await this._stush.stripe.customers.deleteSource(this.data.id, {
-        source: sourceId
-      });
+      const customerId = _.get(this, "data.id", "");
+      if (!customerId) {
+        return Promise.reject("Please provide a valid customer ID to detach a source from.");
+      }
+      let source;
+      if (_.isString(sourceId)) {
+        source = new Source(this._stush, {
+          id: sourceId,
+          customer: customerId
+        });
+      }
+      else if (sourceId instanceof Source) {
+        source = sourceId.clone();
+        if (!_.has(source, "data.customer")) {
+          _.set(source, "data.customer", customerId);
+        }
+      }
+      else {
+        return Promise.reject("Please provide a valid source ID or Source instance.");
+      }
+      await source.delete();
+      return Promise.resolve(source);
+    }
+    catch (err) {
+      return Promise.reject(generateError(err));
+    }
+  }
+
+  async verifySource (sourceId, amounts = []) {
+    if (!this.data.id){
+      throw generateError("Please provide a valid customer ID to verify source.");
+    }
+    try {
+      const source = await this._stush.stripe.customers.verifySource(
+        this.data.id,
+        sourceId,
+        {amounts: amounts}
+      );
+
       return Promise.resolve(new Source(this._stush, source));
     }
     catch (err) {
-      if (_.has(err, "raw") && err.raw.param === "id" && _.startsWith(err.raw.message, "No such source")) {
-        const source = await this._stush.stripe.customers.deleteCard(this.data.id, sourceId);
-        return Promise.resolve(new Source(this._stush, source));
-      }
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -279,19 +325,19 @@ export default class Customer {
       return Promise.resolve(new Subscription(this._stush, requiredSubscription));
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
   /**
    * Fetches all the subscriptions on local customer instance.
-   * @returns {Set}
+   * @returns {array}
    */
   fetchAllSubscriptions () {
     const subscriptions = _.get(this.data, "subscriptions.data");
-    let set = new Set();
+    let set = [];
     for (let subscription of subscriptions) {
-      set.add(new Subscription(this._stush, subscription));
+      set.push(new Subscription(this._stush, subscription));
     }
     return set;
   }
@@ -319,7 +365,7 @@ export default class Customer {
       return Promise.resolve(subscription);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -331,13 +377,7 @@ export default class Customer {
   async endSubscription(subscription = null) {
     try {
       if (!subscription && this._stush.fetchModel() === "multiple") {
-        return Promise.reject({
-          isJoi: true,
-          details: [{
-            message: "Valid subscription is required in Multiple Subscription Model.",
-            code: 500
-          }]
-        });
+        return Promise.reject("Valid subscription is required in Multiple Subscription Model.");
       }
       if (!subscription || !_.has(subscription, "data.id")) {
         await this.selfPopulate();
@@ -348,7 +388,7 @@ export default class Customer {
       return Promise.resolve(response);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -362,13 +402,7 @@ export default class Customer {
     try {
       await this.selfPopulate();
       if (this._stush.fetchModel() === "multiple" && !fromSubscription) {
-        return Promise.reject({
-          isJoi: true,
-          details: [{
-            message: "Valid subscription is required in Multiple Subscription Model.",
-            code: 500
-          }]
-        });
+        return Promise.reject("Valid subscription is required in Multiple Subscription Model.");
       }
       if (!fromSubscription) {
         fromSubscription = await this.fetchSubscription();
@@ -378,7 +412,7 @@ export default class Customer {
       return Promise.resolve(subscription);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -395,13 +429,7 @@ export default class Customer {
     try {
       await this.selfPopulate();
       if (this._stush.fetchModel() === "multiple" && !_.has(fromSubscription, "data.id") && !_.get(toSubscription, "data.cancellation_proration", false)) {
-        return Promise.reject({
-          isJoi: true,
-          details: [{
-            message: "Valid subscription is required in Multiple Subscription Model.",
-            code: 500
-          }]
-        });
+        return Promise.reject("Valid subscription is required in Multiple Subscription Model.");
       }
       if (!fromSubscription) {
         if (_.get(toSubscription, "data.cancellation_proration", false)) {
@@ -452,7 +480,7 @@ export default class Customer {
       return Promise.resolve(prorationData);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -467,7 +495,7 @@ export default class Customer {
       return Promise.resolve(new Refund(this._stush, refund));
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -485,7 +513,7 @@ export default class Customer {
       return Promise.resolve(invoices);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -535,7 +563,7 @@ export default class Customer {
       return Promise.resolve(invoice);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -555,7 +583,7 @@ export default class Customer {
       return Promise.resolve(new Invoice(this._stush, _.head(invoice.data)));
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 

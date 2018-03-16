@@ -28,22 +28,19 @@ export default class Plan {
         cacheLifetime = stushInstance.fetchCacheLifetime(),
         cacheKeys = cache.keys();
       let set = [];
-      if (cacheKeys.includes("all_plans") && !_.get(args, "refresh_cache", false)) {
-        set = cache.get("all_plans");
-      }
-      else {
+      if (cacheKeys.length <= 0 || _.get(args, "refresh_cache", "") || !cacheKeys.includes("all_plans")) {
         _.unset(args, "refresh_cache");
         const plans = await stushInstance.stripe.plans.list(args);
         for (let plan of plans.data) {
-          set.push(new Plan(stushInstance, plan));
           cache.put(_.get(plan, "id"), new Plan(stushInstance, plan), cacheLifetime);
         }
         cache.put("all_plans", set, cacheLifetime);
       }
+      set = cache.get("all_plans");
       return Promise.resolve(set);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -55,7 +52,7 @@ export default class Plan {
   set (data, allowImmutable = false) {
     let updatedData = _.cloneDeep(this.data);
     _.assignIn(updatedData, data);
-    updatedData = formatPlanData(updatedData);
+    updatedData = formatPlanData(updatedData, allowImmutable);
     this.data = updatedData;
   }
 
@@ -63,7 +60,7 @@ export default class Plan {
    * Attempts to update the plan; falls back to creating one.
    * @returns {Promise.<*>}
    */
-  async save () {
+  async oldSave () {
     try {
       let params = PlanSchemaValidator(this.data);
       const data = await this._stush.stripe.plans.update(this.data.id, params.value);
@@ -90,7 +87,65 @@ export default class Plan {
         this.set(data, true);
         return Promise.resolve(this);
       }
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
+    }
+  }
+
+  async save() {
+    try {
+      // If a plan doesn't exist, then flow will go to catch block.
+      await this._stush.stripe.plans.retrieve(_.get(this, "data.id", ""));
+      let params = _.cloneDeep(this);
+      _.unset(params, "data.id");
+      PlanSchemaValidator(_.get(params, "data", {}));
+      const data = await this._stush.stripe.plans.update(
+        _.get(this, "data.id", ""),
+        _.get(params, "data", {})
+      );
+      // Update cache
+      this._cache.put(
+        _.get(data, "id", ""),
+        new Plan(this._stush, data), this._stush.fetchCacheLifetime()
+      );
+      // If all_plans cache key doesn't exist then fetch and cache it; otherwise, update it.
+      if (!this._cache.keys().includes("all_plans")) {
+        await Plan.fetchAll(this._stush);
+      }
+      else {
+        this.updateAllPlansCache(data);
+      }
+      this.set(data, true);
+      return Promise.resolve(this);
+    }
+    catch (err) {
+      try {
+        if (_.get(err, "statusCode", 0) === 404) {
+          PlanSchemaValidator(_.get(this, "data", {}));
+          const data = await this._stush.stripe.plans.create(
+            _.get(this, "data", {})
+          );
+          // Update cache
+          this._cache.put(
+            _.get(data, "id", ""),
+            new Plan(this._stush, data), this._stush.fetchCacheLifetime()
+          );
+          // If all_plans cache key doesn't exist then fetch and cache it; otherwise, update it.
+          if (!this._cache.keys().includes("all_plans")) {
+            await Plan.fetchAll(this._stush);
+          }
+          else {
+            this.updateAllPlansCache(data);
+          }
+          this.set(data, true);
+          return Promise.resolve(this);
+        }
+        else {
+          return Promise.reject(generateError(err));
+        }
+      }
+      catch (e) {
+        return Promise.reject(generateError(e));
+      }
     }
   }
 
@@ -121,7 +176,7 @@ export default class Plan {
       return Promise.resolve(this);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 
@@ -143,7 +198,7 @@ export default class Plan {
       return Promise.resolve(this);
     }
     catch (err) {
-      return Promise.reject(err);
+      return Promise.reject(generateError(err));
     }
   }
 

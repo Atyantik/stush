@@ -73,7 +73,7 @@ export const validator = (input, allowImmutable = false) => {
     ];
     _.set(output, "value", stripEmptyObjects(_.pick(input, mutableFields)));
   }
-  return output;
+  return output.value;
 };
 
 export const formatCustomerData = (input) => {

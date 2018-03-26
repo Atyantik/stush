@@ -8,6 +8,9 @@ import BetterQueue from "at-better-queue";
 import Worker from "../hook/worker";
 import EventEmitter from "events";
 import Source from "../source/source";
+import {makeUtilsGlobal} from "../utils";
+
+makeUtilsGlobal();
 
 export default class Stush {
   userOptions = {

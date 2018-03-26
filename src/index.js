@@ -7,8 +7,6 @@ import Invoice from "./invoice/invoice";
 import Customer from "./customer/customer";
 import Subscription from "./subscription/subscription";
 
-makeUtilsGlobal();
-
 module.exports = {
   Stush: Stush,
   Plan: Plan,

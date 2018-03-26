@@ -68,7 +68,7 @@ export default class Customer {
       let data = {};
       if (_.has(this.data, "id")) {
         let params = await CustomerSchemaValidator(this.data);
-        data = await this._stush.stripe.customers.update(this.data.id, params.value);
+        data = await this._stush.stripe.customers.update(this.data.id, params);
       }
       else {
         data = await this._stush.stripe.customers.create(this.data);

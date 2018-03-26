@@ -98,32 +98,71 @@ const schema = Joi.object().keys({
 });
 
 const stripeCardKeys = [
-  "source",
-  "metadata",
-  "id",
-  "address_city",
-  "address_country",
-  "address_line1",
-  "address_line2",
-  "address_state",
-  "address_zip",
-  "exp_month",
-  "exp_year",
-  "name",
-];
+    "source",
+    "metadata",
+    "id",
+    "address_city",
+    "address_country",
+    "address_line1",
+    "address_line2",
+    "address_state",
+    "address_zip",
+    "exp_month",
+    "exp_year",
+    "name",
+  ],
+  immutableCardKeys = [
+    "object",
+    "brand",
+    "country",
+    "dynamic_last4",
+    "fingerprint",
+    "funding",
+    "last4",
+    "tokenization_method",
+  ];
 
 const stripeBankAccountKeys = [
-  "source",
-  "metadata",
-  "id",
-  "account_holder_name",
-  "account_holder_type",
-];
+    "source",
+    "metadata",
+    "id",
+    "account_holder_name",
+    "account_holder_type",
+  ],
+  immutableBankAccountKeys = [
+    "object",
+    "account",
+    "bank_name",
+    "country",
+    "currency",
+    "default_for_currency",
+    "fingerprint",
+    "last4",
+    "routing_number",
+    "status",
+    "name",
+  ];
 
 const stripeSourceKeys = [
-  "metadata",
-  "owner",
-];
+    "mandate",
+    "metadata",
+    "owner",
+  ],
+  immutableSourceKeys = [
+    "object",
+    "account",
+    "client_secret",
+    "created",
+    "currency",
+    "flow",
+    "livemode",
+    "receiver",
+    "statement_descriptor",
+    "status",
+    "type",
+    "usage",
+    "ach_credit_transfer"
+  ];
 
 export const validator = (input, allowImmutable = false) => {
   let output = Joi.validate(input, schema, {allowUnknown: true});
@@ -159,14 +198,19 @@ export const formatSourceData = (input, common = true) => {
   else {
     let sourceId = _.get(input, "id", "");
     if (_.startsWith(sourceId, "card")) {
+      deleteProperties(input, _.keys(_.pick(input, immutableCardKeys)));
       metadata = _.omit(input, stripeCardKeys);
       deleteProperties(input, _.keys(_.omit(input, stripeCardKeys)));
     }
     else if (_.startsWith(sourceId, "ba")) {
+      deleteProperties(input, _.keys(_.pick(input, immutableBankAccountKeys)));
       metadata = _.omit(input, stripeBankAccountKeys);
       deleteProperties(input, _.keys(_.omit(input, stripeBankAccountKeys)));
     }
     else {
+      if (_.startsWith(sourceId, "src")) {
+        deleteProperties(input, _.keys(_.pick(input, immutableSourceKeys)));
+      }
       metadata = _.omit(input, stripeSourceKeys);
       deleteProperties(input, _.keys(_.omit(input, stripeSourceKeys)));
     }

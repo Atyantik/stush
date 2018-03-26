@@ -52,6 +52,7 @@ export default class Source {
             return Promise.reject(generateError("Please provide a valid customer ID."));
           }
           _.unset(params, "customer");
+          _.unset(params, "source");
           source = await this._stush.stripe.customers.updateCard(
             customerId,
             sourceId,
@@ -108,11 +109,11 @@ export default class Source {
     try {
       const sourceId = _.get(this, "data.id", "");
       if (!sourceId) {
-        return Promise.reject("Please provide a valid source ID.");
+        return Promise.reject(generateError("Please provide a valid source ID."));
       }
       const customerId = _.get(this, "data.customer", "");
       if (!customerId) {
-        return Promise.reject("Please provide a valid customer ID.");
+        return Promise.reject(generateError("Please provide a valid customer ID."));
       }
       let source;
       if (_.startsWith(sourceId, "card")) {
@@ -122,7 +123,7 @@ export default class Source {
         source = await this._stush.stripe.customers.deleteSource(customerId, sourceId);
       }
       else {
-        return Promise.reject("Please provide a valid source ID.");
+        return Promise.reject(generateError("Please provide a valid source ID."));
       }
       this.set(source, true);
       return Promise.resolve(this);

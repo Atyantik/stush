@@ -71,6 +71,9 @@ export default class Customer {
         data = await this._stush.stripe.customers.update(this.data.id, params);
       }
       else {
+        if (!_.get(this, "data.email", "")) {
+          return Promise.reject(generateError("Email is required to create a customer"));
+        }
         data = await this._stush.stripe.customers.create(this.data);
       }
       this.set(data, true);

@@ -20,13 +20,17 @@ describe("Customer", () => {
 
   describe("Create with minimal arguments (email)", () => {
     let customer;
-    const email = "foo@atyantik.com";
+    const email = "customer@atyantik.com";
 
     before(async () => {
       customer = new Customer(stush, {
         email: email
       });
       await customer.save();
+    });
+
+    after(async () => {
+      await customer.delete();
     });
 
     it("should successfully create customer", () => {
@@ -39,43 +43,13 @@ describe("Customer", () => {
     });
   });
 
-  describe("Create with extra unknown properties", () => {
-    let customer;
-    const email = "foo@atyantik.com",
-      extraValue = "extras";
-
-    before(async () => {
-      customer = new Customer(stush, {
-        email: email,
-        extra_1: extraValue,
-        extra_2: extraValue,
-        extra_3: extraValue,
-      });
-      await customer.save();
-    });
-
-    it("should add extra unknown properties to metadata", async () => {
-      // Assertions
-      assert.containsAllKeys(customer, ["data"], "Invalid stush Customer instance");
-      assert.containsAllKeys(customer.data, ["email", "id", "metadata", "object"], "Invalid stush Customer instance");
-      assert.equal(_.get(customer, "data.object", ""), "customer", "Invalid stush Customer instance");
-      assert.equal(_.get(customer, "data.email", ""), email, "Email did not match");
-      assert.match(_.get(customer, "data.id", ""), /^cus_.+$/, "Invalid Stripe customer ID");
-      assert.containsAllKeys(customer.data.metadata, ["extra_1", "extra_2", "extra_3"], "Failed to add extra params to metadata");
-      assert.doesNotHaveAnyKeys(customer.data, ["extra_1", "extra_2", "extra_3"], "Failed to remove extra params from customer obj base level");
-      assert.equal(_.get(customer, "data.metadata.extra_1", ""), extraValue, "extra_1 did not match");
-      assert.equal(_.get(customer, "data.metadata.extra_2", ""), extraValue, "extra_2 did not match");
-      assert.equal(_.get(customer, "data.metadata.extra_3", ""), extraValue, "extra_3 did not match");
-    });
-  });
-
   describe("Create with all possible arguments", () => {
     let customer;
     const args = {
       account_balance: 0,
       business_vat_id: "vat_id",
       description: "Description goes here.",
-      email: "foo@atyantik.com",
+      email: "customer@atyantik.com",
       metadata: {extra_1: "extras"},
       shipping: {
         address: {
@@ -95,6 +69,10 @@ describe("Customer", () => {
     before(async () => {
       customer = new Customer(stush, args);
       await customer.save();
+    });
+
+    after(async () => {
+      await customer.delete();
     });
 
     it("should successfully create a valid customer instance", async () => {
@@ -129,6 +107,40 @@ describe("Customer", () => {
     });
   });
 
+  describe("Create with extra unknown properties", () => {
+    let customer;
+    const email = "customer@atyantik.com",
+      extraValue = "extras";
+
+    before(async () => {
+      customer = new Customer(stush, {
+        email: email,
+        extra_1: extraValue,
+        extra_2: extraValue,
+        extra_3: extraValue,
+      });
+      await customer.save();
+    });
+
+    after(async () => {
+      await customer.delete();
+    });
+
+    it("should add extra unknown properties to metadata", async () => {
+      // Assertions
+      assert.containsAllKeys(customer, ["data"], "Invalid stush Customer instance");
+      assert.containsAllKeys(customer.data, ["email", "id", "metadata", "object"], "Invalid stush Customer instance");
+      assert.equal(_.get(customer, "data.object", ""), "customer", "Invalid stush Customer instance");
+      assert.equal(_.get(customer, "data.email", ""), email, "Email did not match");
+      assert.match(_.get(customer, "data.id", ""), /^cus_.+$/, "Invalid Stripe customer ID");
+      assert.containsAllKeys(customer.data.metadata, ["extra_1", "extra_2", "extra_3"], "Failed to add extra params to metadata");
+      assert.doesNotHaveAnyKeys(customer.data, ["extra_1", "extra_2", "extra_3"], "Failed to remove extra params from customer obj base level");
+      assert.equal(_.get(customer, "data.metadata.extra_1", ""), extraValue, "extra_1 did not match");
+      assert.equal(_.get(customer, "data.metadata.extra_2", ""), extraValue, "extra_2 did not match");
+      assert.equal(_.get(customer, "data.metadata.extra_3", ""), extraValue, "extra_3 did not match");
+    });
+  });
+
   describe("Create without email", () => {
     let err, customer;
 
@@ -146,7 +158,7 @@ describe("Customer", () => {
       // Assertions
       should.exist(err);
       err.should.be.an.instanceOf(Error);
-      err.message.should.equal("child \"email\" fails because [\"email\" must be a string]");
+      err.message.should.equal("Email is required to create a customer");
     });
   });
 
@@ -194,7 +206,7 @@ describe("Customer", () => {
 
   describe("Update all properties that can be updated", () => {
     let customer;
-    const email = "foo@atyantik.com";
+    const email = "customer@atyantik.com";
     const args = {
       account_balance: 500,
       business_vat_id: "vat_id",
@@ -225,6 +237,10 @@ describe("Customer", () => {
       await customer.save();
     });
 
+    after(async () => {
+      await customer.delete();
+    });
+
     it("should update the properties successfully", () => {
       // Assertions
       assert.containsAllKeys(customer, ["data"], "Invalid stush Customer instance");
@@ -250,7 +266,7 @@ describe("Customer", () => {
 
   describe("Update properties that cannot be updated", () => {
     let customer;
-    const email = "foo@atyantik.com";
+    const email = "customer@atyantik.com";
     const args = {
       delinquent: true,
       discount: {}
@@ -265,6 +281,10 @@ describe("Customer", () => {
       await customer.save();
     });
 
+    after(async () => {
+      await customer.delete();
+    });
+
     it("should not update the properties", () => {
       // Assertions
       assert.containsAllKeys(customer, ["data"], "Invalid stush Customer instance");
@@ -277,7 +297,7 @@ describe("Customer", () => {
 
   describe("Update a mix of properties that can be updated, and that can't be updated", () => {
     let customer;
-    const email = "foo@atyantik.com";
+    const email = "customer@atyantik.com";
     const args = {
       account_balance: 500,
       business_vat_id: "vat_id",
@@ -295,6 +315,10 @@ describe("Customer", () => {
       await customer.save();
     });
 
+    after(async () => {
+      await customer.delete();
+    });
+
     it("should only update the properties that can be updated, and ignore the ones that can't be updated", () => {
       // Assertions
       assert.containsAllKeys(customer, ["data"], "Invalid stush Customer instance");
@@ -310,7 +334,7 @@ describe("Customer", () => {
 
   describe("Delete a customer", () => {
     let customer, createdCustomer;
-    const email = "foo@atyantik.com";
+    const email = "customer@atyantik.com";
 
     before(async () => {
       customer = new Customer(stush, {
@@ -332,7 +356,7 @@ describe("Customer", () => {
 
   describe("Delete a customer without customer id", () => {
     let customer, err;
-    const email = "foo@atyantik.com";
+    const email = "customer@atyantik.com";
 
     before(async () => {
       try {
@@ -356,7 +380,7 @@ describe("Customer", () => {
 
   describe("Self populate a customer", () => {
     let customer, createdCustomer;
-    const email = "foo@atyantik.com";
+    const email = "customer@atyantik.com";
 
     before(async () => {
       createdCustomer = new Customer(stush, {
@@ -367,6 +391,10 @@ describe("Customer", () => {
         id: _.get(createdCustomer, "data.id", "")
       });
       await customer.selfPopulate();
+    });
+
+    after(async () => {
+      await createdCustomer.delete();
     });
 
     it("should contain properties that imply customer object is populated from Stripe", () => {
@@ -381,7 +409,7 @@ describe("Customer", () => {
 
   describe("Self populate a customer without customer id", () => {
     let customer, err;
-    const email = "foo@atyantik.com";
+    const email = "customer@atyantik.com";
 
     before(async () => {
       try {

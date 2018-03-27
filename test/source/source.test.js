@@ -35,6 +35,11 @@ describe("Source", () => {
       await source.save();
     });
 
+    after(async () => {
+      await source.delete();
+      await customer.delete();
+    });
+
     it("should create a card for the provided customer", () => {
       // Assertions
       assert.containsAllKeys(source, ["data"], "Invalid stush Source instance");
@@ -64,6 +69,11 @@ describe("Source", () => {
       _.set(params, "customer", _.get(customer, "data.id", ""));
       source = new Source(stush, params);
       await source.save();
+    });
+
+    after(async () => {
+      await source.delete();
+      await customer.delete();
     });
 
     it("should create a card for the provided customer with extra parameters in metadata", () => {
@@ -123,6 +133,10 @@ describe("Source", () => {
       }
     });
 
+    after(async () => {
+      await customer.delete();
+    });
+
     it("should throw an error saying source ID is required", () => {
       // Assertions
       should.exist(err);
@@ -159,6 +173,11 @@ describe("Source", () => {
       await source.save();
       source.set(params);
       await source.save();
+    });
+
+    after(async () => {
+      await source.delete();
+      await customer.delete();
     });
 
     it("should update properties successfully", () => {
@@ -208,6 +227,11 @@ describe("Source", () => {
       await source.save();
       source.set(params);
       await source.save();
+    });
+
+    after(async () => {
+      await source.delete();
+      await customer.delete();
     });
 
     it("should not update the properties", () => {
@@ -266,6 +290,11 @@ describe("Source", () => {
       await source.save();
     });
 
+    after(async () => {
+      await source.delete();
+      await customer.delete();
+    });
+
     it("should only update the properties that can be updated, and ignore the ones that can't be updated", () => {
       // Assertions
       assert.containsAllKeys(source, ["data"], "Invalid stush Source instance");
@@ -296,7 +325,7 @@ describe("Source", () => {
 
   describe("Delete a card", () => {
     let customer, source, createdSource;
-    const email = "foo@atyantik.com";
+    const email = "source@atyantik.com";
 
     before(async () => {
       customer = new Customer(stush, {
@@ -312,6 +341,10 @@ describe("Source", () => {
       await source.delete();
     });
 
+    after(async () => {
+      await customer.delete();
+    });
+
     it("should contain a property \"deleted\" with value true (implies deleted)", () => {
       // Assertions
       assert.containsAllKeys(source, ["data"], "Invalid stush Source instance");
@@ -323,7 +356,7 @@ describe("Source", () => {
 
   describe("Delete a card without customer id", () => {
     let customer, source, createdSource, err;
-    const email = "foo@atyantik.com";
+    const email = "source@atyantik.com";
 
     before(async () => {
       try {
@@ -346,6 +379,11 @@ describe("Source", () => {
       }
     });
 
+    after(async () => {
+      await createdSource.delete();
+      await customer.delete();
+    });
+
     it("should throw an error saying customer ID is required", () => {
       // Assertions
       should.exist(err);
@@ -356,7 +394,7 @@ describe("Source", () => {
 
   describe("Delete a card without card id", () => {
     let customer, source, err;
-    const email = "foo@atyantik.com";
+    const email = "source@atyantik.com";
 
     before(async () => {
       try {
@@ -374,6 +412,10 @@ describe("Source", () => {
       }
     });
 
+    after(async () => {
+      await customer.delete();
+    });
+
     it("should throw an error saying source ID is required", () => {
       // Assertions
       should.exist(err);
@@ -383,8 +425,8 @@ describe("Source", () => {
   });
 
   describe("Delete a card with invalid card id", () => {
-    let customer, source, err;
-    const email = "foo@atyantik.com";
+    let customer, source, err, originalId;
+    const email = "source@atyantik.com";
 
     before(async () => {
       try {
@@ -397,12 +439,19 @@ describe("Source", () => {
           customer: _.get(customer, "data.id", "")
         });
         await source.save();
+        originalId = _.get(source, "data.id", "");  // For cleaning up after test
         source.set({id: "gibberish"});
         await source.delete();
       }
       catch (_err) {
         err = _err;
       }
+    });
+
+    after(async () => {
+      source.set({id: originalId});
+      await source.delete();
+      await customer.delete();
     });
 
     it("should throw an error saying source ID should be valid", () => {
@@ -415,7 +464,7 @@ describe("Source", () => {
 
   describe("Self populate a Source (card) instance", () => {
     let customer, source, createdSource;
-    const email = "foo@atyantik.com";
+    const email = "source@atyantik.com";
 
     before(async () => {
       customer = new Customer(stush, {
@@ -434,6 +483,11 @@ describe("Source", () => {
       await source.selfPopulate();
     });
 
+    after(async () => {
+      await source.delete();
+      await customer.delete();
+    });
+
     it("should contain properties that imply source object is populated from Stripe", () => {
       // Assertions
       assert.containsAllKeys(source, ["data"], "Invalid stush Source instance");
@@ -450,7 +504,7 @@ describe("Source", () => {
 
   describe("Self populate a Source (card) instance without customer ID", () => {
     let customer, source, createdSource, err;
-    const email = "foo@atyantik.com";
+    const email = "source@atyantik.com";
 
     before(async () => {
       try {
@@ -473,6 +527,11 @@ describe("Source", () => {
       }
     });
 
+    after(async () => {
+      await createdSource.delete();
+      await customer.delete();
+    });
+
     it("should throw an error saying customer ID is required for populating card", () => {
       // Assertions
       should.exist(err);
@@ -483,7 +542,7 @@ describe("Source", () => {
 
   describe("Self populate a Source (card) instance without card ID", () => {
     let customer, source, createdSource, err;
-    const email = "foo@atyantik.com";
+    const email = "source@atyantik.com";
 
     before(async () => {
       try {
@@ -506,6 +565,11 @@ describe("Source", () => {
       }
     });
 
+    after(async () => {
+      await createdSource.delete();
+      await customer.delete();
+    });
+
     it("should throw an error saying source ID is required for populating card", () => {
       // Assertions
       should.exist(err);
@@ -516,7 +580,7 @@ describe("Source", () => {
 
   describe("Self populate a Source (card) instance with invalid card ID", () => {
     let customer, source, createdSource, err;
-    const email = "foo@atyantik.com";
+    const email = "source@atyantik.com";
 
     before(async () => {
       try {
@@ -537,6 +601,11 @@ describe("Source", () => {
       catch (_err) {
         err = _err;
       }
+    });
+
+    after(async () => {
+      await createdSource.delete();
+      await customer.delete();
     });
 
     it("should throw an error saying Source ID is invalid", () => {

@@ -16,7 +16,11 @@ const schema = Joi.object().keys({
     otherwise: Joi.string().length(3, "utf8").allow(null)
   }).allow(null),
   duration: Joi.string().valid("forever", "once", "repeating").required(),
-  duration_in_months: Joi.number().positive().allow(null),
+  duration_in_months: Joi.number().positive().when("duration", {
+    is: Joi.string().valid("repeating"),
+    then: Joi.number().required(),
+    otherwise: Joi.number().allow(null)
+  }),
   livemode: Joi.boolean(),
   max_redemptions: Joi.number().positive().allow(null),
   metadata: Joi.object(),

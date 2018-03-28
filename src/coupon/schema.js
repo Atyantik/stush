@@ -55,9 +55,18 @@ const immutableFields = [
 ];
 
 export const validator = (input, allowImmutable = false) => {
+  if (_.isNull(_.get(input, "amount_off", ""))) {
+    _.unset(input, "amount_off");
+  }
+  if (_.isNull(_.get(input, "percent_off", ""))) {
+    _.unset(input, "percent_off");
+  }
   let output = Joi.validate(input, schema, {allowUnknown: true}, (err, value) => {
     const errors = _.filter(_.get(err, "details", []), (item) => {
-      return !(allowImmutable && _.get(item, "type", "") === "object.without" && (_.get(item, "context.main", "") === "amount_off" || _.get(item, "context.main", "") === "percent_off"));
+      return !(
+        allowImmutable && _.get(item, "type", "") === "object.without" &&
+        (_.get(item, "context.main", "") === "amount_off" || _.get(item, "context.main", "") === "percent_off")
+      );
     });
     _.set(err, "details", errors);
     if (errors.length) {

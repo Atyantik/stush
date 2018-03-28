@@ -4,7 +4,6 @@
 import _ from "lodash";
 import generateError from "../handler/error";
 import {validator as couponSchemaValidator, formatCouponData} from "./schema";
-import Source from "../source/source";
 
 export default class Coupon {
   data = {};
@@ -71,7 +70,7 @@ export default class Coupon {
   async selfPopulate() {
     try {
       if (!_.get(this, "data.id", "")) {
-        return Promise.reject("Please provide a valid coupon ID to self populate.");
+        return Promise.reject(generateError("Please provide a valid coupon ID to self populate."));
       }
       const coupon = await this._stush.stripe.coupons.retrieve(_.get(this, "data.id", ""));
       this.set(coupon, true);
@@ -85,7 +84,7 @@ export default class Coupon {
   async delete() {
     try {
       if (!_.get(this, "data.id", "")) {
-        return Promise.reject("Please provide a valid coupon ID to delete.");
+        return Promise.reject(generateError("Please provide a valid coupon ID to delete."));
       }
       const coupon = await this._stush.stripe.coupons.del(_.get(this, "data.id", ""));
       this.set(coupon);
@@ -97,7 +96,9 @@ export default class Coupon {
   }
 
   clone() {
-    return new Coupon(this._stush, _.cloneDeep(this.data));
+    let clone = new Coupon(this._stush, {});
+    clone.set(this.data, true);
+    return clone;
   }
 
   toJson() {

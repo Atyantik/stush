@@ -15,7 +15,7 @@ const schema = Joi.object().keys({
   livemode: Joi.boolean(),
   metadata: Joi.object(),
   name: Joi.string(),
-  statement_descriptor: Joi.string()
+  statement_descriptor: Joi.string().allow(null)
 });
 
 const mutableFields = [
@@ -41,6 +41,7 @@ export const validator = (input, allowImmutable = false) => {
   if (allowImmutable) {
     _.set(options, "allowUnknown", true);
   }
+  deleteProperties(input, stripePlanKeys);
   let output = Joi.validate(input, schema, options, (err, value) => {
     if (err) {
       throw generateError(err);

@@ -9,9 +9,9 @@ export default class Coupon {
   data = {};
   _stush = {};
 
-  constructor(stushInstance, data) {
+  constructor(stushInstance, data, allowImmutable = false) {
     this._stush = stushInstance;
-    this.set(data);
+    this.set(data, allowImmutable);
   }
 
   static async fetchAll(stushInstance, args = {}) {
@@ -19,7 +19,7 @@ export default class Coupon {
       let couponArray = [];
       const coupons = await stushInstance.stripe.coupons.list(args);
       coupons.data.forEach(value => {
-        couponArray.push(new Coupon(stushInstance, value));
+        couponArray.push(new Coupon(stushInstance, value, true));
       });
       return Promise.resolve(couponArray);
     }

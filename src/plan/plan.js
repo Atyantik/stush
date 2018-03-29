@@ -10,7 +10,7 @@ export default class Plan {
   _stush = {};
   _cache = {};
 
-  constructor (stushInstance, data = {}) {
+  constructor (stushInstance, data) {
     this._stush = stushInstance;
     this._cache = stushInstance.fetchCacheInstance();
     this.set(data, true);
@@ -60,37 +60,6 @@ export default class Plan {
    * Attempts to update the plan; falls back to creating one.
    * @returns {Promise.<*>}
    */
-  async oldSave () {
-    try {
-      let params = PlanSchemaValidator(this.data);
-      const data = await this._stush.stripe.plans.update(this.data.id, params.value);
-      this._cache.put(data.id, new Plan(this._stush, data), this._stush.fetchCacheLifetime());
-      if (!this._cache.keys().includes("all_plans")) {
-        await Plan.fetchAll(this._stush);
-      }
-      else {
-        this.updateAllPlansCache(data);
-      }
-      this.set(data, true);
-      return Promise.resolve(this);
-    }
-    catch (err) {
-      if (_.has(err, "raw") && err.raw.param === "plan" && err.raw.statusCode === 404) {
-        const data = await this._stush.stripe.plans.create(this.data);
-        this._cache.put(data.id, new Plan(this._stush, data), this._stush.fetchCacheLifetime());
-        if (!this._cache.keys().includes("all_plans")) {
-          await Plan.fetchAll(this._stush);
-        }
-        else {
-          this.updateAllPlansCache(data);
-        }
-        this.set(data, true);
-        return Promise.resolve(this);
-      }
-      return Promise.reject(generateError(err));
-    }
-  }
-
   async save() {
     try {
       // If a plan doesn't exist, then flow will go to catch block.
@@ -100,7 +69,7 @@ export default class Plan {
       PlanSchemaValidator(_.get(params, "data", {}));
       const data = await this._stush.stripe.plans.update(
         _.get(this, "data.id", ""),
-        _.get(params, "data", {})
+        _.pick(this.data, ["metadata"])
       );
       // Update cache
       this._cache.put(
@@ -155,7 +124,7 @@ export default class Plan {
    */
   async selfPopulate () {
     if (!this.data.id) {
-      return Promise.reject(generateError("Please provide a valid plan ID before self populating"));
+      return Promise.reject(generateError("Please provide a valid plan ID before self populating."));
     }
     try {
       let data;
@@ -172,7 +141,8 @@ export default class Plan {
           this.updateAllPlansCache(this.data);
         }
       }
-      _.assignIn(this.data, data);
+      this.set(data, true);
+      // _.assignIn(this.data, data);
       return Promise.resolve(this);
     }
     catch (err) {
@@ -185,8 +155,11 @@ export default class Plan {
    * @returns {Promise.<*>}
    */
   async delete () {
+    if (!this.data.id) {
+      return Promise.reject(generateError("Please provide a valid plan ID to delete."));
+    }
     try {
-      const plan = this.data.id;
+      const plan = _.get(this, "data.id", "");
       this.data = await this._stush.stripe.plans.del(plan);
       this._cache.del(plan);
       if (!this._cache.keys().includes("all_plans")) {
@@ -206,7 +179,7 @@ export default class Plan {
    * Returns data in JSON format.
    */
   toJson () {
-    return JSON.parse(JSON.stringify(_.get(this, "data")));
+    return JSON.parse(JSON.stringify(_.get(this, "data", {})));
   }
 
   /**
@@ -214,7 +187,7 @@ export default class Plan {
    * @returns {string}
    */
   getInterval () {
-    return this.data.interval_count + " " + this.data.interval;
+    return _.get(this, "data.interval_count", "") + " " + _.get(this, "data.interval", "");
   }
 
   /**
@@ -222,7 +195,7 @@ export default class Plan {
    * @returns {schema.amount|{is, then}|*}
    */
   getPrice () {
-    return this.data.amount;
+    return _.get(this, "data.amount", "");
   }
 
   /**

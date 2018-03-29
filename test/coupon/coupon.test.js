@@ -466,4 +466,64 @@ describe("Coupon", () => {
     });
   });
 
+  describe("Test utility methods on Coupon class", () => {
+    let coupon, json;
+
+    before(async () => {
+      coupon = new Coupon(stush, {
+        id: code,
+        duration: "once",
+        amount_off: 1000,
+        currency: "usd"
+      });
+      await coupon.save();
+      json = coupon.toJson();
+    });
+
+    after(async () => {
+      await coupon.delete();
+    });
+
+    it("should return correct json of Coupon instance", () => {
+      // Assertions
+      assert.containsAllKeys(coupon, ["data"], "Invalid Stush Coupon instance");
+      assert.containsAllKeys(coupon.data, ["id", "object"], "Invalid Stush Coupon instance");
+      assert.equal(_.get(coupon, "data.id", ""), code, "Coupon ID did not match");
+      assert.equal(_.get(coupon, "data.object", ""), "coupon", "Invalid stush coupon object type");
+      assert.deepEqual(json, _.get(coupon, "data", ""), "coupon.toJson() failed");
+    });
+  });
+
+  describe("Fetch all coupons", () => {
+    let coupons, coupon1, coupon2;
+
+    before(async () => {
+      coupon1 = new Coupon(stush, {
+        id: code,
+        duration: "once",
+        percent_off: 10
+      });
+      await coupon1.save();
+      coupon2 = new Coupon(stush, {
+        id: "FREEFUND1",
+        duration: "once",
+        percent_off: 10
+      });
+      await coupon2.save();
+      coupons = await Coupon.fetchAll(stush);
+    });
+
+    after(async () => {
+      await coupon1.delete();
+      await coupon2.delete();
+    });
+
+    it("should contain the two newly created coupons", () => {
+      // Assertions
+      assert.isAbove(coupons.length, 2, "Number of coupons fetched is incorrect");
+      assert.includeDeepMembers([ { a: 1 }, { b: 2 }, { c: 3 } ], [ { b: 2 }, { b: 2 } ], "include deep members");
+      assert.includeDeepMembers(coupons, [coupon1, coupon2], "Did not fetch all coupons");
+    });
+  });
+
 });

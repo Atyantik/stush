@@ -149,13 +149,13 @@ export default class Source {
           attachedSource = await this._stush.stripe.customers.createSource(_.get(customer, "data.id", ""), {source: sourceId});
         }
         else {
-          return Promise.reject("Please provide a valid customer ID or Customer instance.");
+          return Promise.reject(generateError("Please provide a valid customer ID or Customer instance."));
         }
         this.set(attachedSource, true);
         return Promise.resolve(this);
       }
       else {
-        return Promise.reject("Please provide a valid source ID.");
+        return Promise.reject(generateError("Please provide a valid source ID."));
       }
     }
     catch (err) {

@@ -145,7 +145,7 @@ export default class Customer {
   async attachSource (sourceId) {
     try {
       if (!_.get(this, "data.id", "")) {
-        return Promise.reject("Please provide a valid customer ID to attach a source to.");
+        return Promise.reject(generateError("Please provide a valid customer ID to attach a source to."));
       }
       let source;
       if (_.isString(sourceId)) {
@@ -158,7 +158,7 @@ export default class Customer {
         source = sourceId.clone();
       }
       else {
-        return Promise.reject("Please provide a valid source ID or Source instance to attach.");
+        return Promise.reject(generateError("Please provide a valid source ID or Source instance to attach."));
       }
       await source.attachTo(this);
       return Promise.resolve(source);
@@ -212,7 +212,7 @@ export default class Customer {
     try {
       const customerId = _.get(this, "data.id", "");
       if (!customerId) {
-        return Promise.reject("Please provide a valid customer ID to detach a source from.");
+        return Promise.reject(generateError("Please provide a valid customer ID to detach a source from."));
       }
       let source;
       if (_.isString(sourceId)) {
@@ -228,7 +228,7 @@ export default class Customer {
         }
       }
       else {
-        return Promise.reject("Please provide a valid source ID or Source instance.");
+        return Promise.reject(generateError("Please provide a valid source ID or Source instance."));
       }
       await source.delete();
       return Promise.resolve(source);
@@ -240,7 +240,7 @@ export default class Customer {
 
   async verifySource (sourceId, amounts = []) {
     if (!this.data.id){
-      throw generateError("Please provide a valid customer ID to verify source.");
+      throw generateError(generateError("Please provide a valid customer ID to verify source."));
     }
     try {
       const source = await this._stush.stripe.customers.verifySource(

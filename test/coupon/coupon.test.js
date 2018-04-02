@@ -520,8 +520,7 @@ describe("Coupon", () => {
 
     it("should contain the two newly created coupons", () => {
       // Assertions
-      assert.isAbove(coupons.length, 2, "Number of coupons fetched is incorrect");
-      assert.includeDeepMembers([ { a: 1 }, { b: 2 }, { c: 3 } ], [ { b: 2 }, { b: 2 } ], "include deep members");
+      assert.isAtLeast(coupons.length, 2, "Number of coupons fetched is incorrect");
       assert.includeDeepMembers(coupons, [coupon1, coupon2], "Did not fetch all coupons");
     });
   });

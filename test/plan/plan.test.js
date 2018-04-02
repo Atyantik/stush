@@ -234,9 +234,7 @@ describe("Plan", () => {
       plan = new Plan(stush, {
         id: _.get(createdPlan, "data.id", "")
       });
-      console.log("1 >>>>>>>>>>> ", plan.toJson());
       await plan.selfPopulate();
-      console.log("2 >>>>>>>>>>> ", plan.toJson());
     });
 
     after(async () => {

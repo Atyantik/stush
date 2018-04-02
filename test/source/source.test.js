@@ -7,6 +7,9 @@ import Source from "../../src/source/source";
 const assert = chai.assert;
 const should = chai.should();
 
+const email = "source@atyantik.com";
+const sourceToken = "tok_visa";
+
 if (!process.env.npm_config_SECRET_KEY && !process.env.SECRET_KEY) {
   console.error("\nPlease provide Stripe secret key for tests (npm --SECRET_KEY=YOUR_KEY test or set as env variable).\n\n");
   process.exit();
@@ -21,7 +24,6 @@ describe("Source", () => {
 
   describe("Create card with minimal arguments (customer ID and token)", () => {
     let source, customer;
-    const email = "source@atyantik.com";
 
     before(async () => {
       customer = new Customer(stush, {
@@ -29,7 +31,7 @@ describe("Source", () => {
       });
       await customer.save();
       source = new Source(stush, {
-        id: "tok_visa",
+        id: sourceToken,
         customer: _.get(customer, "data.id", "")
       });
       await source.save();
@@ -53,10 +55,9 @@ describe("Source", () => {
 
   describe("Create card with all possible parameters", () => {
     let source, customer;
-    const email = "source@atyantik.com",
-      extraValue = "extras",
+    const extraValue = "extras",
       params = {
-        id: "tok_visa",
+        id: sourceToken,
         extra_1: extraValue,
         extra_2: extraValue
       };
@@ -96,7 +97,7 @@ describe("Source", () => {
     before(async () => {
       try {
         source = new Source(stush, {
-          id: "tok_visa"
+          id: sourceToken
         });
         await source.save();
       }
@@ -115,7 +116,6 @@ describe("Source", () => {
 
   describe("Create card without source id or token", () => {
     let source, customer, err;
-    const email = "source@atyantik.com";
 
     before(async () => {
       try {
@@ -147,19 +147,18 @@ describe("Source", () => {
 
   describe("Update all properties that can be updated", () => {
     let source, customer;
-    const email = "source@atyantik.com",
-      params = {
-        address_city: "City of London",
-        address_country: "GB",
-        address_line1: "address line 1",
-        address_line2: "address line 2",
-        address_state: "London",
-        address_zip: "NE17",
-        exp_month: 10,
-        exp_year: 2025,
-        extra_1: "extras",
-        name: "New Name"
-      };
+    const params = {
+      address_city: "City of London",
+      address_country: "GB",
+      address_line1: "address line 1",
+      address_line2: "address line 2",
+      address_state: "London",
+      address_zip: "NE17",
+      exp_month: 10,
+      exp_year: 2025,
+      extra_1: "extras",
+      name: "New Name"
+    };
 
     before(async () => {
       customer = new Customer(stush, {
@@ -167,7 +166,7 @@ describe("Source", () => {
       });
       await customer.save();
       source = new Source(stush, {
-        id: "tok_visa",
+        id: sourceToken,
         customer: _.get(customer, "data.id", "")
       });
       await source.save();
@@ -203,17 +202,16 @@ describe("Source", () => {
 
   describe("Update properties that can't be updated", () => {
     let source, customer;
-    const email = "source@atyantik.com",
-      params = {
-        brand: "MasterCard",
-        object: "bank_account",
-        country: "IN",
-        dynamic_last4: "0000",
-        fingerprint: "gibberish",
-        funding: "unknown",
-        last4: "0000",
-        tokenization_method: "android_pay"
-      };
+    const params = {
+      brand: "MasterCard",
+      object: "bank_account",
+      country: "IN",
+      dynamic_last4: "0000",
+      fingerprint: "gibberish",
+      funding: "unknown",
+      last4: "0000",
+      tokenization_method: "android_pay"
+    };
 
     before(async () => {
       customer = new Customer(stush, {
@@ -221,7 +219,7 @@ describe("Source", () => {
       });
       await customer.save();
       source = new Source(stush, {
-        id: "tok_visa",
+        id: sourceToken,
         customer: _.get(customer, "data.id", "")
       });
       await source.save();
@@ -254,27 +252,26 @@ describe("Source", () => {
 
   describe("Update a mix of properties that can be updated, and that can't be updated", () => {
     let source, customer;
-    const email = "source@atyantik.com",
-      params = {
-        brand: "MasterCard",
-        object: "bank_account",
-        country: "IN",
-        dynamic_last4: "0000",
-        fingerprint: "gibberish",
-        funding: "unknown",
-        last4: "0000",
-        tokenization_method: "android_pay",
-        address_city: "City of London",
-        address_country: "GB",
-        address_line1: "address line 1",
-        address_line2: "address line 2",
-        address_state: "London",
-        address_zip: "NE17",
-        exp_month: 10,
-        exp_year: 2025,
-        extra_1: "extras",
-        name: "New Name"
-      };
+    const params = {
+      brand: "MasterCard",
+      object: "bank_account",
+      country: "IN",
+      dynamic_last4: "0000",
+      fingerprint: "gibberish",
+      funding: "unknown",
+      last4: "0000",
+      tokenization_method: "android_pay",
+      address_city: "City of London",
+      address_country: "GB",
+      address_line1: "address line 1",
+      address_line2: "address line 2",
+      address_state: "London",
+      address_zip: "NE17",
+      exp_month: 10,
+      exp_year: 2025,
+      extra_1: "extras",
+      name: "New Name"
+    };
 
     before(async () => {
       customer = new Customer(stush, {
@@ -282,7 +279,7 @@ describe("Source", () => {
       });
       await customer.save();
       source = new Source(stush, {
-        id: "tok_visa",
+        id: sourceToken,
         customer: _.get(customer, "data.id", "")
       });
       await source.save();
@@ -325,7 +322,6 @@ describe("Source", () => {
 
   describe("Delete a card", () => {
     let customer, source, createdSource;
-    const email = "source@atyantik.com";
 
     before(async () => {
       customer = new Customer(stush, {
@@ -333,7 +329,7 @@ describe("Source", () => {
       });
       await customer.save();
       createdSource = new Source(stush, {
-        id: "tok_visa",
+        id: sourceToken,
         customer: _.get(customer, "data.id", "")
       });
       await createdSource.save();
@@ -356,7 +352,6 @@ describe("Source", () => {
 
   describe("Delete a card without customer id", () => {
     let customer, source, createdSource, err;
-    const email = "source@atyantik.com";
 
     before(async () => {
       try {
@@ -365,7 +360,7 @@ describe("Source", () => {
         });
         await customer.save();
         createdSource = new Source(stush, {
-          id: "tok_visa",
+          id: sourceToken,
           customer: _.get(customer, "data.id", "")
         });
         await createdSource.save();
@@ -394,7 +389,6 @@ describe("Source", () => {
 
   describe("Delete a card without card id", () => {
     let customer, source, err;
-    const email = "source@atyantik.com";
 
     before(async () => {
       try {
@@ -426,7 +420,6 @@ describe("Source", () => {
 
   describe("Delete a card with invalid card id", () => {
     let customer, source, err, originalId;
-    const email = "source@atyantik.com";
 
     before(async () => {
       try {
@@ -435,7 +428,7 @@ describe("Source", () => {
         });
         await customer.save();
         source = new Source(stush, {
-          id: "tok_visa",
+          id: sourceToken,
           customer: _.get(customer, "data.id", "")
         });
         await source.save();
@@ -464,7 +457,6 @@ describe("Source", () => {
 
   describe("Self populate a Source (card) instance", () => {
     let customer, source, createdSource;
-    const email = "source@atyantik.com";
 
     before(async () => {
       customer = new Customer(stush, {
@@ -472,7 +464,7 @@ describe("Source", () => {
       });
       await customer.save();
       createdSource = new Source(stush, {
-        id: "tok_visa",
+        id: sourceToken,
         customer: _.get(customer, "data.id", "")
       });
       await createdSource.save();
@@ -504,7 +496,6 @@ describe("Source", () => {
 
   describe("Self populate a Source (card) instance without customer ID", () => {
     let customer, source, createdSource, err;
-    const email = "source@atyantik.com";
 
     before(async () => {
       try {
@@ -513,7 +504,7 @@ describe("Source", () => {
         });
         await customer.save();
         createdSource = new Source(stush, {
-          id: "tok_visa",
+          id: sourceToken,
           customer: _.get(customer, "data.id", "")
         });
         await createdSource.save();
@@ -542,7 +533,6 @@ describe("Source", () => {
 
   describe("Self populate a Source (card) instance without card ID", () => {
     let customer, source, createdSource, err;
-    const email = "source@atyantik.com";
 
     before(async () => {
       try {
@@ -551,7 +541,7 @@ describe("Source", () => {
         });
         await customer.save();
         createdSource = new Source(stush, {
-          id: "tok_visa",
+          id: sourceToken,
           customer: _.get(customer, "data.id", "")
         });
         await createdSource.save();
@@ -580,7 +570,6 @@ describe("Source", () => {
 
   describe("Self populate a Source (card) instance with invalid card ID", () => {
     let customer, source, createdSource, err;
-    const email = "source@atyantik.com";
 
     before(async () => {
       try {
@@ -589,7 +578,7 @@ describe("Source", () => {
         });
         await customer.save();
         createdSource = new Source(stush, {
-          id: "tok_visa",
+          id: sourceToken,
           customer: _.get(customer, "data.id", "")
         });
         await createdSource.save();
@@ -613,6 +602,37 @@ describe("Source", () => {
       should.exist(err);
       err.should.be.an.instanceOf(Error);
       err.message.should.equal("Invalid source ID provided");
+    });
+  });
+
+  describe("Test utility methods on Coupon class", () => {
+    let customer, source, json;
+
+    before(async () => {
+      customer = new Customer(stush, {
+        email: email
+      });
+      await customer.save();
+      source = new Source(stush, {
+        id: sourceToken,
+        customer: _.get(customer, "data.id", "")
+      });
+      await source.save();
+      json = source.toJson();
+    });
+
+    after(async () => {
+      await source.delete();
+      await customer.delete();
+    });
+
+    it("should return correct json of Source instance", () => {
+      // Assertions
+      assert.containsAllKeys(source, ["data"], "Invalid Stush Source instance");
+      assert.containsAllKeys(source.data, ["id", "object"], "Invalid Stush Source instance");
+      assert.match(_.get(source, "data.id", ""), /^card_.+$/, "Invalid Stripe card ID");
+      assert.equal(_.get(source, "data.object", ""), "card", "Invalid stush Source object type");
+      assert.deepEqual(json, _.get(source, "data", ""), "source.toJson() failed");
     });
   });
 

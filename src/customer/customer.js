@@ -590,6 +590,41 @@ export default class Customer {
     }
   }
 
+  async addInvoiceItem (args = {}) {
+    try {
+      if (!_.get(this, "data.id", false)) {
+        return Promise.reject(generateError("Please provide a valid customer ID to add a new item to an upcoming invoice."));
+      }
+      if (!_.get(args, "currency", false)) {
+        return Promise.reject(generateError("Please provide a valid currency to add a new item to an upcoming invoice."));
+      }
+      let params = {
+        customer: _.get(this, "data.id", "")
+      };
+      _.assignIn(params, args);
+      await this._stush.stripe.invoiceItems.create(params);
+      return Promise.resolve(true);
+    }
+    catch (err) {
+      return Promise.reject(generateError(err));
+    }
+  }
+
+  async removeInvoiceItem (itemId) {
+    try {
+      if (!itemId) {
+        return Promise.reject(generateError("Please provide a valid item ID to remove an item."));
+      }
+      await this._stush.stripe.invoiceItems.del({
+        invoiceitem: itemId
+      });
+      return Promise.resolve(true);
+    }
+    catch (err) {
+      return Promise.reject(generateError(err));
+    }
+  }
+
   /**
    * Fetches the latest subscribed or modified plan(This operation is performed on subscription).
    * @param subscriptionId

@@ -32,8 +32,8 @@ const schema = Joi.object().keys({
   // Stripe Invoice Object properties
   id: Joi.string().token(),
   object: Joi.string().valid("invoice"),
-  amount_due: Joi.number().positive().min(0),
-  attempt_count: Joi.number().positive().min(0),
+  amount_due: Joi.number().min(0),
+  attempt_count: Joi.number().min(0),
   attempted: Joi.boolean(),
   charge: Joi.string().token().allow(null),
   currency: Joi.string().length(3, "utf8").allow(null),
@@ -42,17 +42,44 @@ const schema = Joi.object().keys({
   ending_balance: Joi.number().allow(null),
   lines: Joi.object(),
   livemode: Joi.boolean(),
-  next_payment_attempt: Joi.number().positive(),
-  number: Joi.string().token(),
+  next_payment_attempt: Joi.number().positive().allow(null),
+  number: Joi.string(),
   period_end: Joi.number().positive(),
   period_start: Joi.number().positive(),
   receipt_number: Joi.string().allow(null),
-  starting_balance: Joi.number().positive().min(0),
-  subtotal: Joi.number().positive().min(0),
-  tax: Joi.number().positive().min(0).allow(null),
-  total: Joi.number().positive().min(0),
+  starting_balance: Joi.number().min(0),
+  subtotal: Joi.number().min(0),
+  tax: Joi.number().min(0).allow(null),
+  total: Joi.number().min(0),
   webhooks_delivered_at: Joi.number().positive().allow(null)
 });
+
+const immutableFields = [
+  "id",
+  "object",
+  "amount_due",
+  "amount_paid",
+  "amount_remaining",
+  "attempt_count",
+  "attempted",
+  "charge",
+  "currency",
+  "date",
+  "discount",
+  "ending_balance",
+  "lines",
+  "livemode",
+  "next_payment_attempt",
+  "number",
+  "period_end",
+  "period_start",
+  "receipt_number",
+  "starting_balance",
+  "subtotal",
+  "tax",
+  "total",
+  "webhooks_delivered_at",
+];
 
 const mutableFields = [
   "application_fee",
@@ -88,9 +115,10 @@ export const validator = (input, allowImmutable = false) => {
   return output;
 };
 
-export const formatInvoiceData = input => {
-  let metadata = _.omit(input, _.concat(mutableFields, createMutableFields));
-  deleteProperties(input, _.keys(_.omit(input, _.concat(mutableFields, createMutableFields))));
+export const formatInvoiceData = (input, allowImmutable = false) => {
+  let filter = allowImmutable ? _.concat(mutableFields, createMutableFields, immutableFields) : _.concat(mutableFields, createMutableFields);
+  let metadata = _.omit(input, filter);
+  deleteProperties(input, _.keys(_.omit(input, filter)));
   if (!_.has(input, "metadata")) _.set(input, "metadata", {});
   _.assignIn(_.get(input, "metadata"), metadata);
   return input;

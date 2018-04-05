@@ -12,7 +12,7 @@ export default class Invoice {
   data = {};
   _stush = {};
 
-  constructor(stushInstance, data = {}) {
+  constructor(stushInstance, data) {
     this._stush = stushInstance;
     this.set(data, true);
   }
@@ -45,7 +45,7 @@ export default class Invoice {
   set(data, allowImmutable = false) {
     let updatedData = _.cloneDeep(this.data);
     _.assignIn(updatedData, data);
-    updatedData = formatInvoiceData(updatedData);
+    updatedData = formatInvoiceData(updatedData, allowImmutable);
     InvoiceSchemaValidator(updatedData, allowImmutable);
     this.data = updatedData;
   }
@@ -60,8 +60,15 @@ export default class Invoice {
       let params = _.cloneDeep(_.get(this, "data", {}));
       if (_.has(this, "data.id")) {
         // Update this invoice.
-        _.unset(params, "id");
-        _.unset(params, "customer");
+        deleteProperties(params, _.keys(_.omit(params, [
+          "application_fee", "closed", "days_until_due", "description", "due_date",
+          "forgiven", "metadata", "paid", "statement_descriptor", "tax_percent"
+        ])));
+        _.forIn(params, (value, key) => {
+          if (_.isNull(value)) {
+            _.unset(params, key);
+          }
+        });
         data = await this._stush.stripe.invoices.update(_.get(this, "data.id", ""), params);
       }
       else {
@@ -79,7 +86,7 @@ export default class Invoice {
   async selfPopulate() {
     try {
       if (!_.get(this, "data.id", "")) {
-        return Promise.reject("Please provide a valid invoice ID to self populate.");
+        return Promise.reject(generateError("Please provide a valid invoice ID to self populate."));
       }
       const invoice = await this._stush.stripe.invoices.retrieve(_.get(this, "data.id", ""));
       this.set(invoice, true);
@@ -93,7 +100,7 @@ export default class Invoice {
   async fetchItems() {
     try {
       if (!_.get(this, "data.id", "")) {
-        return Promise.reject("Please provide a valid invoice ID to fetch its line items.");
+        return Promise.reject(generateError("Please provide a valid invoice ID to fetch its line items."));
       }
       const invoiceItems = await this._stush.stripe.invoices.retrieveLines(_.get(this, "data.id", ""));
       return Promise.resolve(invoiceItems);
@@ -107,7 +114,7 @@ export default class Invoice {
    * Returns data in JSON format.
    */
   toJson() {
-    return JSON.parse(JSON.stringify(_.pick(this, ["data"])));
+    return JSON.parse(JSON.stringify(_.get(this, "data", {})));
   }
 
   async pay(sourceId = null) {
@@ -129,11 +136,14 @@ export default class Invoice {
    * @param args
    * @returns {Promise.<*>}
    */
-  async populateWithUpcoming(args) {
-    if (!_.has(args, "customer")) {
-      return Promise.reject(generateError("Please provide a valid customer ID to add a new subscription."));
+  async populateWithUpcoming(args = {}) {
+    const customer = _.get(args, "customer", _.get(this, "data.customer", "")),
+      subscription = _.get(args, "subscription", _.get(this, "data.subscription", ""));
+    _.assignIn(args, {customer, subscription});
+    if (!customer) {
+      return Promise.reject(generateError("Please provide a valid customer ID to fetch upcoming invoice."));
     }
-    if (!_.has(args, "subscription")) {
+    if (!subscription) {
       return Promise.reject(generateError("Please provide a valid subscription to fetch upcoming invoice."));
     }
     let params = sanitizePopulateWithUpcoming(args);
@@ -148,6 +158,9 @@ export default class Invoice {
    * @returns {Promise.<{proration_cost: number, proration_items: Array}>}
    */
   calculateProration(proration_date, changeInBillingCycle = false) {
+    if (_.has(this, "data.id")) {
+      return Promise.reject(generateError("Proration can only be calculated on an upcoming invoice."));
+    }
     let currentProrations = [];
     let cost = 0, invoiceItem = {};
     if (changeInBillingCycle) {

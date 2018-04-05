@@ -238,7 +238,8 @@ export default class Subscription {
       });
       await customer.selfPopulate();
       // Check input with stush configuration options.
-      const prorationEnabled = this._stush.fetchProrationSetting();
+      const prorationSetting = this._stush.fetchProrationSetting(),
+        prorationEnabled = prorationSetting === "all" || prorationSetting === "cancel_subscription";
       if (prorationEnabled && !atPeriodEnd && (_.has(input, "value.refund") || _.has(input, "value.refund_value_from"))) {
         // Fetch last invoice on this subscription for charge ID
         const invoice = await customer.fetchAnInvoice({
@@ -271,7 +272,7 @@ export default class Subscription {
 
       _.set(response, "subscription", this.toJson());
       _.set(response, "refund", null);
-      if (!atPeriodEnd && (_.has(input, "value.refund") || _.has(input, "value.refund_value_from"))) {
+      if (prorationEnabled && !atPeriodEnd && (_.has(input, "value.refund") || _.has(input, "value.refund_value_from"))) {
         const refund = await customer.refund(refundParams);
         _.set(response, "refund", refund.toJson());
       }
